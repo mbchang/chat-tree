@@ -23,20 +23,14 @@ type MessageNodeData = {
   onBranch: () => void;
 };
 
+// Define MessageNode outside the Page component
 const MessageNode = ({ data }: { data: MessageNodeData }) => {
   const { message, sender, onBranch } = data;
   return (
     <div
-      style={{
-        padding: 10,
-        border: '1px solid #ccc',
-        borderRadius: 5,
-        background: sender === 'user' ? '#d9d9d9' : '#e6e6e6',
-        color: '#000',
-        maxWidth: 200,
-        position: 'relative',
-        textAlign: 'center',
-      }}
+      className={`p-4 border border-gray-300 rounded ${
+        sender === 'user' ? 'bg-gray-300' : 'bg-gray-200'
+      } text-black max-w-xs relative text-center`}
     >
       {/* Target Handle at the Top */}
       <Handle
@@ -48,15 +42,7 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
       {sender === 'assistant' && (
         <button
           onClick={onBranch}
-          style={{
-            marginTop: 5,
-            padding: '5px 10px',
-            backgroundColor: '#007bff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 3,
-            cursor: 'pointer',
-          }}
+          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600"
         >
           Branch
         </button>
@@ -71,6 +57,7 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
   );
 };
 
+// Define nodeTypes outside the Page component
 const nodeTypes = {
   messageNode: MessageNode,
 };
@@ -213,7 +200,7 @@ const Page = () => {
   };
 
   return (
-    <div style={{ height: '100vh', position: 'relative' }}>
+    <div className="h-screen relative">
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -228,43 +215,17 @@ const Page = () => {
           <Controls />
         </ReactFlow>
         {currentNodeId && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 20,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: '#fff',
-              padding: 10,
-              borderRadius: 5,
-              boxShadow: '0 0 10px rgba(0,0,0,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              zIndex: 10,
-            }}
-          >
+          <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded shadow flex items-center z-10">
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Enter your message"
-              style={{
-                padding: 5,
-                marginRight: 10,
-                border: '1px solid #ccc',
-                borderRadius: 3,
-              }}
+              className="p-2 mr-2 border border-gray-300 rounded text-black placeholder:text-gray-600"
             />
             <button
               onClick={submitMessage}
-              style={{
-                padding: '5px 10px',
-                backgroundColor: '#007bff',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 3,
-                cursor: 'pointer',
-              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600"
             >
               Send
             </button>
