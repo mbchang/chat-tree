@@ -154,53 +154,80 @@ const getLayoutedNodesAndEdges = (
   edges: Edge[],
   direction = 'TB' // Top to Bottom
 ) => {
-  // Instantiate a new dagreGraph for each layout
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction });
 
-  // Constants for estimating node sizes
-  const baseNodeHeight = 100; // Base height for a node (e.g., padding, input field)
-  const messageHeight = 30; // Estimated height per message
-  const nodeWidth = 500; // Width of nodes (can adjust as needed)
+  // Increase vertical spacing between nodes
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: 100, // Horizontal spacing between nodes
+    ranksep: 200, // Vertical spacing between ranks
+    rankwidth: 1000, // Width available for each rank
+  });
 
+  // Constants for node sizing
+  const baseNodeHeight = 100;
+  const messageHeight = 40; // Increased from 30 to give more space
+  const nodeWidth = 600; // Increased from 500
+  const minHeight = 150; // Minimum height for nodes
+
+  // Calculate node dimensions
   nodes.forEach((node) => {
     const nodeData = node.data as MessageNodeData;
     const numMessages = nodeData.chatHistory.length;
 
-    // Estimate the node height
-    const estimatedHeight =
-      baseNodeHeight + numMessages * messageHeight;
+    // Calculate height with padding and minimum size
+    const estimatedHeight = Math.max(
+      minHeight,
+      baseNodeHeight + numMessages * messageHeight
+    );
 
     dagreGraph.setNode(node.id, {
       width: nodeWidth,
-      height: estimatedHeight + 3 * messageHeight,
+      height: estimatedHeight,
+      paddingLeft: 20,
+      paddingRight: 20,
+      paddingTop: 20,
+      paddingBottom: 20,
     });
   });
 
+  // Add edges to the graph
   edges.forEach((edge) => {
     dagreGraph.setEdge(edge.source, edge.target);
   });
 
+  // Run the layout algorithm
   dagre.layout(dagreGraph);
 
+  // Update node positions with the layout results
   const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
-    node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y:
-        nodeWithPosition.y -
-        (nodeWithPosition.height || baseNodeHeight) / 2,
+
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeWithPosition.height / 2,
+      },
+      style: {
+        width: nodeWidth,
+        height: nodeWithPosition.height,
+      },
     };
-    // Optional: Set the node's style to match the estimated size
-    node.style = {
-      width: nodeWidth,
-      height: nodeWithPosition.height,
-    };
-    return node;
   });
 
-  return { nodes: layoutedNodes, edges };
+  return {
+    nodes: layoutedNodes,
+    edges: edges.map((edge) => ({
+      ...edge,
+      style: {
+        ...edge.style,
+        strokeWidth: 2,
+        stroke: '#555',
+      },
+    })),
+  };
 };
 
 const updateIsLeaf = (nodes: Node[], edges: Edge[]) => {
