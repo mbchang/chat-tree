@@ -7,7 +7,6 @@ import ReactFlow, {
   ReactFlowProvider,
   MiniMap,
   Controls,
-  Background,
   Node,
   Edge,
   useNodesState,
@@ -27,15 +26,27 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
     <div
       style={{
         padding: 10,
-        border: '1px solid black',
+        border: '1px solid #ccc',
         borderRadius: 5,
-        background: sender === 'user' ? '#e0f7fa' : '#e8eaf6',
-        color: '#000', // Ensure text is black
+        background: sender === 'user' ? '#d9d9d9' : '#e6e6e6',
+        color: '#000',
+        maxWidth: 200,
       }}
     >
       <div>{message}</div>
       {sender === 'assistant' && (
-        <button onClick={onBranch} style={{ marginTop: 5 }}>
+        <button
+          onClick={onBranch}
+          style={{
+            marginTop: 5,
+            padding: '5px 10px',
+            backgroundColor: '#007bff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 3,
+            cursor: 'pointer',
+          }}
+        >
           Branch
         </button>
       )}
@@ -139,10 +150,11 @@ const Page = () => {
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           fitView
+          style={{ backgroundColor: '#fff' }} // Background set to white
         >
           <MiniMap />
           <Controls />
-          <Background color="#aaa" gap={16} />
+          {/* Background component removed */}
         </ReactFlow>
         {currentNodeId && (
           <div
@@ -173,7 +185,14 @@ const Page = () => {
             />
             <button
               onClick={submitMessage}
-              style={{ padding: '5px 10px' }}
+              style={{
+                padding: '5px 10px',
+                backgroundColor: '#007bff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 3,
+                cursor: 'pointer',
+              }}
             >
               Send
             </button>
