@@ -9,6 +9,8 @@ import ReactFlow, {
   Controls,
   Node,
   Edge,
+  Handle,
+  Position,
   useNodesState,
   useEdgesState,
 } from 'reactflow';
@@ -31,8 +33,15 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
         background: sender === 'user' ? '#d9d9d9' : '#e6e6e6',
         color: '#000',
         maxWidth: 200,
+        position: 'relative',
       }}
     >
+      {/* Target Handle */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ top: '50%', background: '#555' }}
+      />
       <div>{message}</div>
       {sender === 'assistant' && (
         <button
@@ -50,6 +59,12 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
           Branch
         </button>
       )}
+      {/* Source Handle */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ top: '50%', background: '#555' }}
+      />
     </div>
   );
 };
@@ -59,21 +74,7 @@ const nodeTypes = {
 };
 
 const Page = () => {
-  const initialNodes: Node[] = [
-    {
-      id: '1',
-      type: 'messageNode',
-      data: {
-        message: 'Hello! How can I assist you today?',
-        sender: 'assistant',
-        onBranch: () => handleBranch('1'),
-      },
-      position: { x: 250, y: 5 },
-    },
-  ];
-
-  const [nodes, setNodes, onNodesChange] =
-    useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [inputValue, setInputValue] = useState('');
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(
@@ -83,6 +84,23 @@ const Page = () => {
   const handleBranch = (nodeId: string) => {
     setCurrentNodeId(nodeId);
   };
+
+  // Initialize the initial node after handleBranch is defined
+  React.useEffect(() => {
+    const initialNode: Node = {
+      id: '1',
+      type: 'messageNode',
+      data: {
+        message: 'Hello! How can I assist you today?',
+        sender: 'assistant',
+        onBranch: () => handleBranch('1'),
+      },
+      position: { x: 250, y: 5 },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    };
+    setNodes([initialNode]);
+  }, []);
 
   const submitMessage = () => {
     if (inputValue && currentNodeId) {
@@ -104,6 +122,8 @@ const Page = () => {
           x: (parentNode?.position.x || 0) + 200,
           y: (parentNode?.position.y || 0) + 100,
         },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
       };
 
       const assistantMessage = 'Assistant response to: ' + inputValue;
@@ -119,22 +139,33 @@ const Page = () => {
           x: userNode.position.x,
           y: userNode.position.y + 100,
         },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
       };
+
+      const edgeStyle = { stroke: '#000', strokeWidth: 2 };
 
       const userEdge: Edge = {
         id: `e${currentNodeId}-${userNodeId}`,
         source: currentNodeId,
         target: userNodeId,
+        type: 'default',
+        animated: true,
+        style: edgeStyle,
       };
 
       const assistantEdge: Edge = {
         id: `e${userNodeId}-${assistantNodeId}`,
         source: userNodeId,
         target: assistantNodeId,
+        type: 'default',
+        animated: true,
+        style: edgeStyle,
       };
 
       setNodes((nds) => nds.concat([userNode, assistantNode]));
       setEdges((eds) => eds.concat([userEdge, assistantEdge]));
+
       setInputValue('');
       setCurrentNodeId(null);
     }
@@ -150,11 +181,10 @@ const Page = () => {
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           fitView
-          style={{ backgroundColor: '#fff' }} // Background set to white
+          style={{ backgroundColor: '#fff' }}
         >
           <MiniMap />
           <Controls />
-          {/* Background component removed */}
         </ReactFlow>
         {currentNodeId && (
           <div
