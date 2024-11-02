@@ -11,6 +11,7 @@ import ReactFlow, {
   Edge,
   Handle,
   Position,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
@@ -43,35 +44,73 @@ const MessageNode = ({
     data;
   const [inputValue, setInputValue] = useState('');
   const [isHoveringDelete, setIsHoveringDelete] = useState(false);
+  const { getNodes, setCenter, getZoom } = useReactFlow();
 
-  const sendMessage = () => {
-    const trimmedInput = inputValue.trim();
-    if (trimmedInput !== '') {
-      onSendMessage(trimmedInput);
-      setInputValue('');
+  const handleNodeClick = (event: React.MouseEvent) => {
+    if (
+      (event.target as HTMLElement).tagName === 'BUTTON' ||
+      (event.target as HTMLElement).tagName === 'INPUT' ||
+      (event.target as HTMLElement).closest('.interactive-element')
+    ) {
+      return;
     }
+
+    const node = getNodes().find((n) => n.id === id);
+    if (!node) return;
+
+    const currentZoom = getZoom();
+    const targetZoom = 1.5; // Desired zoom level
+    const steps = 20; // Number of animation steps
+
+    let step = 0;
+    const interval = setInterval(() => {
+      if (step >= steps) {
+        clearInterval(interval);
+        return;
+      }
+
+      const progress = step / steps;
+      const easeProgress =
+        progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      const intermediateZoom =
+        currentZoom + (targetZoom - currentZoom) * easeProgress;
+
+      setCenter(node.position.x + 300, node.position.y + 100, {
+        zoom: intermediateZoom, // Use zoom here
+        duration: 50,
+      });
+
+      step++;
+    }, 20); // 20ms interval for smooth animation
   };
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>
-  ) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // Prevents newline
-      sendMessage(); // Sends the message
+  const sendMessage = () => {
+    if (inputValue.trim() !== '') {
+      onSendMessage(inputValue);
+      setInputValue('');
     }
   };
 
   const lastMessageIndex = chatHistory.length - 1;
 
   return (
-    <div className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px]">
+    <div
+      className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px] cursor-pointer"
+      onClick={handleNodeClick}
+    >
       {/* Delete Button */}
       <div
-        className="absolute -top-2 -right-2 z-10 cursor-pointer transition-opacity duration-200"
+        className="absolute -top-2 -right-2 z-10 cursor-pointer transition-opacity duration-200 interactive-element"
         style={{ opacity: isHoveringDelete ? '1' : '0.3' }}
         onMouseEnter={() => setIsHoveringDelete(true)}
         onMouseLeave={() => setIsHoveringDelete(false)}
-        onClick={() => onDelete(id)}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent node click handler
+          onDelete(id);
+        }}
       >
         <div className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600">
           <svg
@@ -90,12 +129,13 @@ const MessageNode = ({
         </div>
       </div>
 
-      {/* Messages */}
       <Handle
         type="target"
         position={Position.Top}
         style={{ top: -8, background: '#555' }}
+        className="interactive-element"
       />
+
       <div className="flex flex-col space-y-2 mb-2">
         {chatHistory.map((msg, index) => (
           <div
@@ -116,8 +156,11 @@ const MessageNode = ({
             {msg.sender === 'assistant' &&
               !(isLeaf && index === lastMessageIndex) && (
                 <button
-                  onClick={() => onBranch(msg.id)}
-                  className="ml-2 text-gray-400 hover:text-green-500 transition-colors duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent node click handler
+                    onBranch(msg.id);
+                  }}
+                  className="ml-2 text-gray-400 hover:text-green-500 transition-colors duration-200 interactive-element"
                   style={{ fontSize: '12px', padding: '2px' }}
                 >
                   <svg
@@ -134,21 +177,28 @@ const MessageNode = ({
         ))}
       </div>
 
-      {/* Input area */}
       {isLeaf && (
         <div className="mt-2">
           <div className="flex items-center">
-            <textarea
+            <input
+              type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Enter your message"
-              onKeyDown={handleKeyDown}
-              className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 resize-none"
-              rows={2}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  sendMessage();
+                }
+              }}
+              onClick={(e) => e.stopPropagation()} // Prevent node click handler
+              className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 interactive-element"
             />
             <button
-              onClick={sendMessage}
-              className="ml-2 text-blue-500 hover:text-blue-600"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent node click handler
+                sendMessage();
+              }}
+              className="ml-2 text-blue-500 hover:text-blue-600 interactive-element"
               aria-label="Send message"
             >
               <svg
@@ -168,6 +218,7 @@ const MessageNode = ({
         type="source"
         position={Position.Bottom}
         style={{ bottom: -8, background: '#555' }}
+        className="interactive-element"
       />
     </div>
   );
