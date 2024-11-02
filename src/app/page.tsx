@@ -45,7 +45,7 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
   const lastMessageIndex = chatHistory.length - 1;
 
   return (
-    <div className="p-4 border border-gray-300 rounded bg-white text-black relative">
+    <div className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px]">
       {/* Target Handle at the Top */}
       <Handle
         type="target"
@@ -56,11 +56,18 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
       {/* Chat History */}
       <div className="flex flex-col space-y-2 mb-2">
         {chatHistory.map((msg, index) => (
-          <div key={msg.id} className="flex items-start">
+          <div
+            key={msg.id}
+            className={`flex ${
+              msg.sender === 'user' ? 'justify-end' : 'justify-start'
+            }`}
+          >
             <div
-              className={`p-2 rounded ${
-                msg.sender === 'user' ? 'bg-gray-300' : 'bg-gray-200'
-              } flex-1`}
+              className={`p-2 rounded-lg max-w-[80%] ${
+                msg.sender === 'user'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-black'
+              }`}
             >
               {msg.content}
             </div>
@@ -74,7 +81,7 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
                     );
                     onBranch(msg.id);
                   }}
-                  className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  className="ml-2 px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
                 >
                   Branch
                 </button>
