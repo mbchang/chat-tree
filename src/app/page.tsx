@@ -27,11 +27,18 @@ type MessageNodeData = {
   onBranch: (messageId: string) => void;
   isLeaf: boolean;
 };
-
-// Define MessageNode outside the Page component
+// MessageNode Component
 const MessageNode = ({ data }: { data: MessageNodeData }) => {
   const { chatHistory, onSendMessage, onBranch, isLeaf } = data;
   const [inputValue, setInputValue] = useState('');
+
+  // Function to handle sending messages
+  const sendMessage = () => {
+    if (inputValue.trim() !== '') {
+      onSendMessage(inputValue);
+      setInputValue('');
+    }
+  };
 
   return (
     <div className="p-4 border border-gray-300 rounded bg-white text-black max-w-xs relative">
@@ -73,24 +80,34 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
       {/* Input Field - Only render if isLeaf is true */}
       {isLeaf && (
         <div className="mt-2">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Enter your message"
-            className="w-full p-2 border border-gray-300 rounded text-black placeholder:text-gray-600"
-          />
-          <button
-            onClick={() => {
-              if (inputValue.trim() !== '') {
-                onSendMessage(inputValue);
-                setInputValue('');
-              }
-            }}
-            className="mt-2 w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Send
-          </button>
+          <div className="flex items-center">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Enter your message"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  sendMessage();
+                }
+              }}
+              className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600"
+            />
+            <button
+              onClick={sendMessage}
+              className="ml-2 text-blue-500 hover:text-blue-600"
+            >
+              {/* Send Icon */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M2.94 2.94a1.5 1.5 0 012.12 0L17 14.88a1.5 1.5 0 11-2.12 2.12L2.94 5.06a1.5 1.5 0 010-2.12z" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
