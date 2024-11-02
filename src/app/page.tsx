@@ -203,12 +203,9 @@ const Page = () => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
-      const originalNodeIndex = nodes.findIndex(
-        (n) => n.id === nodeId
-      );
-      if (originalNodeIndex === -1) return prevFlowData;
+      const originalNode = nodes.find((n) => n.id === nodeId);
+      if (!originalNode) return prevFlowData;
 
-      const originalNode = nodes[originalNodeIndex];
       const originalData = originalNode.data as MessageNodeData;
       const messageIndex = originalData.chatHistory.findIndex(
         (msg) => msg.id === messageId
@@ -216,164 +213,121 @@ const Page = () => {
 
       if (messageIndex === -1) return prevFlowData;
 
-      // Check if the node needs splitting
-      const needsSplitting =
-        originalData.chatHistory.length > messageIndex + 1;
+      // Create new IDs
+      const timestamp = Date.now();
+      const branchNodeId = `${timestamp}-branch`;
+      const continuationNodeId = `${timestamp}-continuation`;
+      const newBranchNodeId = `${timestamp}-newbranch`;
 
-      if (needsSplitting) {
-        // Proceed to split the node
+      // Chat histories
+      const chatHistoryUpToBranch = originalData.chatHistory.slice(
+        0,
+        messageIndex + 1
+      );
+      const chatHistoryAfterBranch = originalData.chatHistory.slice(
+        messageIndex + 1
+      );
 
-        // Create new chat histories
-        const chatHistoryUpToBranch = originalData.chatHistory.slice(
-          0,
-          messageIndex + 1
-        );
-        const chatHistoryAfterBranch = originalData.chatHistory.slice(
-          messageIndex + 1
-        );
+      // Create new branch node (up to branch point)
+      const branchNode: Node = {
+        id: branchNodeId,
+        type: 'messageNode',
+        data: {
+          chatHistory: chatHistoryUpToBranch,
+          onSendMessage: (message) =>
+            handleSendMessage(branchNodeId, message),
+          onBranch: (msgId) => handleBranch(branchNodeId, msgId),
+        },
+        position: originalNode.position,
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+      };
 
-        // Generate new IDs
-        const timestamp = Date.now();
-        const continuationNodeId = `${timestamp}-continuation`;
-        const newBranchNodeId = `${timestamp}-newbranch`;
+      // Create continuation node (after branch point)
+      const continuationNode: Node = {
+        id: continuationNodeId,
+        type: 'messageNode',
+        data: {
+          chatHistory: chatHistoryAfterBranch,
+          onSendMessage: (message) =>
+            handleSendMessage(continuationNodeId, message),
+          onBranch: (msgId) =>
+            handleBranch(continuationNodeId, msgId),
+        },
+        position: {
+          x: originalNode.position.x,
+          y: originalNode.position.y + 200,
+        },
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+      };
 
-        // Modify the original node to have chat history up to branch point
-        const updatedOriginalNode: Node = {
-          ...originalNode,
-          data: {
-            ...originalNode.data,
-            chatHistory: chatHistoryUpToBranch,
-          },
-        };
+      // Create new branch node (empty chat history)
+      const newBranchNode: Node = {
+        id: newBranchNodeId,
+        type: 'messageNode',
+        data: {
+          chatHistory: [],
+          onSendMessage: (message) =>
+            handleSendMessage(newBranchNodeId, message),
+          onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
+        },
+        position: {
+          x: originalNode.position.x + 300,
+          y: originalNode.position.y + 200,
+        },
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+      };
 
-        // Create the continuation node (after branch point)
-        const continuationNode: Node = {
-          id: continuationNodeId,
-          type: 'messageNode',
-          data: {
-            chatHistory: chatHistoryAfterBranch,
-            onSendMessage: (message) =>
-              handleSendMessage(continuationNodeId, message),
-            onBranch: (msgId) =>
-              handleBranch(continuationNodeId, msgId),
-          },
-          position: {
-            x: originalNode.position.x - 200,
-            y: originalNode.position.y + 200,
-          },
-          sourcePosition: Position.Bottom,
-          targetPosition: Position.Top,
-        };
+      // Adjust edges
+      const newEdges = edges.map((edge) => {
+        if (edge.target === nodeId) {
+          // Edge points to original node; redirect it to the new branch node
+          return { ...edge, target: branchNodeId };
+        } else if (edge.source === nodeId) {
+          // Edge originates from original node; redirect it from the continuation node
+          return { ...edge, source: continuationNodeId };
+        }
+        return edge;
+      });
 
-        // Create the new branch node (empty chat history)
-        const newBranchNode: Node = {
-          id: newBranchNodeId,
-          type: 'messageNode',
-          data: {
-            chatHistory: [], // Empty chat history to start fresh
-            onSendMessage: (message) =>
-              handleSendMessage(newBranchNodeId, message),
-            onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
-          },
-          position: {
-            x: originalNode.position.x + 200,
-            y: originalNode.position.y + 200,
-          },
-          sourcePosition: Position.Bottom,
-          targetPosition: Position.Top,
-        };
-
-        // Create edges from the original node to continuation and new branch nodes
-        const continuationEdge: Edge = {
-          id: `e${nodeId}-${continuationNodeId}`,
-          source: nodeId,
+      // Edges from branch node to continuation and new branch nodes
+      newEdges.push(
+        {
+          id: `e${branchNodeId}-${continuationNodeId}`,
+          source: branchNodeId,
           target: continuationNodeId,
           type: 'default',
           animated: true,
           style: { stroke: '#000', strokeWidth: 2 },
-        };
-
-        const newBranchEdge: Edge = {
-          id: `e${nodeId}-${newBranchNodeId}`,
-          source: nodeId,
+        },
+        {
+          id: `e${branchNodeId}-${newBranchNodeId}`,
+          source: branchNodeId,
           target: newBranchNodeId,
           type: 'default',
           animated: true,
           style: { stroke: '#000', strokeWidth: 2 },
-        };
+        }
+      );
 
-        const newEdges = [...edges, continuationEdge, newBranchEdge];
+      // Remove the original node
+      const updatedNodes = nodes.filter((n) => n.id !== nodeId);
 
-        // Update nodes: replace the original node with the updated one
-        const updatedNodes = [...nodes];
-        updatedNodes[originalNodeIndex] = updatedOriginalNode;
-        updatedNodes.push(continuationNode, newBranchNode);
+      // Add new nodes
+      updatedNodes.push(branchNode, continuationNode, newBranchNode);
 
-        // Apply layout
-        const layouted = getLayoutedNodesAndEdges(
-          updatedNodes,
-          newEdges
-        );
+      // Apply layout
+      const layouted = getLayoutedNodesAndEdges(
+        updatedNodes,
+        newEdges
+      );
 
-        return {
-          nodes: layouted.nodes,
-          edges: layouted.edges,
-        };
-      } else {
-        // Node's chat history is already up to the branch point
-        // Simply create a new branch node and connect it
-
-        // Generate new IDs
-        const timestamp = Date.now();
-        const newBranchNodeId = `${timestamp}-newbranch`;
-
-        // Create the new branch node (empty chat history)
-        const newBranchNode: Node = {
-          id: newBranchNodeId,
-          type: 'messageNode',
-          data: {
-            chatHistory: [], // Empty chat history to start fresh
-            onSendMessage: (message) =>
-              handleSendMessage(newBranchNodeId, message),
-            onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
-          },
-          position: {
-            x: originalNode.position.x + 200,
-            y:
-              originalNode.position.y +
-              200 *
-                (edges.filter((e) => e.source === nodeId).length + 1),
-          },
-          sourcePosition: Position.Bottom,
-          targetPosition: Position.Top,
-        };
-
-        // Create edge from the original node to the new branch node
-        const newBranchEdge: Edge = {
-          id: `e${nodeId}-${newBranchNodeId}`,
-          source: nodeId,
-          target: newBranchNodeId,
-          type: 'default',
-          animated: true,
-          style: { stroke: '#000', strokeWidth: 2 },
-        };
-
-        const newEdges = [...edges, newBranchEdge];
-
-        // Update nodes
-        const updatedNodes = [...nodes, newBranchNode];
-
-        // Apply layout
-        const layouted = getLayoutedNodesAndEdges(
-          updatedNodes,
-          newEdges
-        );
-
-        return {
-          nodes: layouted.nodes,
-          edges: layouted.edges,
-        };
-      }
+      return {
+        nodes: layouted.nodes,
+        edges: layouted.edges,
+      };
     });
   };
 
