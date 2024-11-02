@@ -25,11 +25,12 @@ type MessageNodeData = {
   chatHistory: ChatMessage[];
   onSendMessage: (message: string) => void;
   onBranch: (messageId: string) => void;
+  isLeaf: boolean;
 };
 
 // Define MessageNode outside the Page component
 const MessageNode = ({ data }: { data: MessageNodeData }) => {
-  const { chatHistory, onSendMessage, onBranch } = data;
+  const { chatHistory, onSendMessage, onBranch, isLeaf } = data;
   const [inputValue, setInputValue] = useState('');
 
   return (
@@ -69,27 +70,29 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
         ))}
       </div>
 
-      {/* Input Field */}
-      <div className="mt-2">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Enter your message"
-          className="w-full p-2 border border-gray-300 rounded text-black placeholder:text-gray-600"
-        />
-        <button
-          onClick={() => {
-            if (inputValue.trim() !== '') {
-              onSendMessage(inputValue);
-              setInputValue('');
-            }
-          }}
-          className="mt-2 w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Send
-        </button>
-      </div>
+      {/* Input Field - Only render if isLeaf is true */}
+      {isLeaf && (
+        <div className="mt-2">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Enter your message"
+            className="w-full p-2 border border-gray-300 rounded text-black placeholder:text-gray-600"
+          />
+          <button
+            onClick={() => {
+              if (inputValue.trim() !== '') {
+                onSendMessage(inputValue);
+                setInputValue('');
+              }
+            }}
+            className="mt-2 w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Send
+          </button>
+        </div>
+      )}
 
       {/* Source Handle at the Bottom */}
       <Handle
@@ -144,6 +147,22 @@ const getLayoutedNodesAndEdges = (
   return { nodes: layoutedNodes, edges };
 };
 
+const updateIsLeaf = (nodes: Node[], edges: Edge[]) => {
+  const sourceIds = new Set(edges.map((edge) => edge.source));
+  const updatedNodes = nodes.map((node) => {
+    const isLeaf = !sourceIds.has(node.id);
+    const nodeData = node.data as MessageNodeData;
+    return {
+      ...node,
+      data: {
+        ...nodeData,
+        isLeaf,
+      },
+    };
+  });
+  return updatedNodes;
+};
+
 const Page = () => {
   const [flowData, setFlowData] = useState<{
     nodes: Node[];
@@ -187,9 +206,15 @@ const Page = () => {
       // Apply layout
       const layouted = getLayoutedNodesAndEdges(updatedNodes, edges);
 
+      // Update isLeaf status
+      const nodesWithIsLeaf = updateIsLeaf(
+        layouted.nodes,
+        layouted.edges
+      );
+
       // Return updated flow data
       return {
-        nodes: layouted.nodes,
+        nodes: nodesWithIsLeaf,
         edges: layouted.edges,
       };
     });
@@ -237,6 +262,7 @@ const Page = () => {
           onSendMessage: (message) =>
             handleSendMessage(branchNodeId, message),
           onBranch: (msgId) => handleBranch(branchNodeId, msgId),
+          isLeaf: true, // Will be updated later
         },
         position: originalNode.position,
         sourcePosition: Position.Bottom,
@@ -253,6 +279,7 @@ const Page = () => {
             handleSendMessage(continuationNodeId, message),
           onBranch: (msgId) =>
             handleBranch(continuationNodeId, msgId),
+          isLeaf: true, // Will be updated later
         },
         position: {
           x: originalNode.position.x,
@@ -271,6 +298,7 @@ const Page = () => {
           onSendMessage: (message) =>
             handleSendMessage(newBranchNodeId, message),
           onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
+          isLeaf: true, // Initially a leaf node
         },
         position: {
           x: originalNode.position.x + 300,
@@ -324,8 +352,14 @@ const Page = () => {
         newEdges
       );
 
+      // Update isLeaf status
+      const nodesWithIsLeaf = updateIsLeaf(
+        layouted.nodes,
+        layouted.edges
+      );
+
       return {
-        nodes: layouted.nodes,
+        nodes: nodesWithIsLeaf,
         edges: layouted.edges,
       };
     });
@@ -346,6 +380,7 @@ const Page = () => {
         ],
         onSendMessage: (message) => handleSendMessage('1', message),
         onBranch: (messageId) => handleBranch('1', messageId),
+        isLeaf: true, // Initially, the root node is a leaf node
       },
       position: { x: 0, y: 0 },
       sourcePosition: Position.Bottom,
@@ -354,8 +389,11 @@ const Page = () => {
 
     const layouted = getLayoutedNodesAndEdges([initialNode], []);
 
+    // Update isLeaf status
+    const nodesWithIsLeaf = updateIsLeaf(layouted.nodes, []);
+
     setFlowData({
-      nodes: layouted.nodes,
+      nodes: nodesWithIsLeaf,
       edges: [],
     });
   }, []);
