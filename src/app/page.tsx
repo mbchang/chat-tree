@@ -451,6 +451,11 @@ const Page = () => {
           edges={flowData.edges}
           nodeTypes={nodeTypes}
           fitView
+          minZoom={0.01} // Adjusted minZoom
+          translateExtent={[
+            [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
+            [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
+          ]} // Optional: Allow infinite panning
           style={{ backgroundColor: '#fff' }}
         >
           <MiniMap />
