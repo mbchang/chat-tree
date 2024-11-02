@@ -35,13 +35,14 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
         color: '#000',
         maxWidth: 200,
         position: 'relative',
+        textAlign: 'center',
       }}
     >
-      {/* Target Handle */}
+      {/* Target Handle at the Top */}
       <Handle
         type="target"
-        position={Position.Left}
-        style={{ top: '50%', background: '#555' }}
+        position={Position.Top}
+        style={{ top: -8, background: '#555' }}
       />
       <div>{message}</div>
       {sender === 'assistant' && (
@@ -60,11 +61,11 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
           Branch
         </button>
       )}
-      {/* Source Handle */}
+      {/* Source Handle at the Bottom */}
       <Handle
         type="source"
-        position={Position.Right}
-        style={{ top: '50%', background: '#555' }}
+        position={Position.Bottom}
+        style={{ bottom: -8, background: '#555' }}
       />
     </div>
   );
@@ -85,7 +86,6 @@ const getLayoutedNodesAndEdges = (
   edges: Edge[],
   direction = 'TB' // Top to Bottom
 ) => {
-  const isHorizontal = direction === 'LR';
   dagreGraph.setGraph({ rankdir: direction });
 
   nodes.forEach((node) => {
@@ -136,8 +136,8 @@ const Page = () => {
         onBranch: () => handleBranch('1'),
       },
       position: { x: 0, y: 0 },
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
+      sourcePosition: Position.Bottom,
+      targetPosition: Position.Top,
     };
 
     const layouted = getLayoutedNodesAndEdges([initialNode], []);
@@ -160,8 +160,8 @@ const Page = () => {
           onBranch: () => handleBranch(userNodeId),
         },
         position: { x: 0, y: 0 },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
       };
 
       const assistantMessage = 'Assistant response to: ' + inputValue;
@@ -174,8 +174,8 @@ const Page = () => {
           onBranch: () => handleBranch(assistantNodeId),
         },
         position: { x: 0, y: 0 },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
       };
 
       const edgeStyle = { stroke: '#000', strokeWidth: 2 };
