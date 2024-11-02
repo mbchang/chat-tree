@@ -45,7 +45,7 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
   const lastMessageIndex = chatHistory.length - 1;
 
   return (
-    <div className="p-4 border border-gray-300 rounded bg-white text-black max-w-xs relative">
+    <div className="p-4 border border-gray-300 rounded bg-white text-black relative">
       {/* Target Handle at the Top */}
       <Handle
         type="target"
