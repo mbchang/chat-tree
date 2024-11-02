@@ -25,15 +25,23 @@ type MessageNodeData = {
   chatHistory: ChatMessage[];
   onSendMessage: (message: string) => void;
   onBranch: (messageId: string) => void;
+  onDelete: (nodeId: string) => void; // Add this line
   isLeaf: boolean;
 };
 
 // MessageNode Component
-const MessageNode = ({ data }: { data: MessageNodeData }) => {
-  const { chatHistory, onSendMessage, onBranch, isLeaf } = data;
+const MessageNode = ({
+  data,
+  id,
+}: {
+  data: MessageNodeData;
+  id: string;
+}) => {
+  const { chatHistory, onSendMessage, onBranch, isLeaf, onDelete } =
+    data;
   const [inputValue, setInputValue] = useState('');
+  const [isHoveringDelete, setIsHoveringDelete] = useState(false);
 
-  // Function to handle sending messages
   const sendMessage = () => {
     if (inputValue.trim() !== '') {
       onSendMessage(inputValue);
@@ -41,19 +49,42 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
     }
   };
 
-  // Determine the index of the last message
   const lastMessageIndex = chatHistory.length - 1;
 
   return (
     <div className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px]">
-      {/* Target Handle at the Top */}
+      {/* Delete Button */}
+      <div
+        className="absolute -top-2 -right-2 z-10 cursor-pointer transition-opacity duration-200"
+        style={{ opacity: isHoveringDelete ? '1' : '0.3' }}
+        onMouseEnter={() => setIsHoveringDelete(true)}
+        onMouseLeave={() => setIsHoveringDelete(false)}
+        onClick={() => onDelete(id)}
+      >
+        <div className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Rest of the MessageNode component remains the same */}
       <Handle
         type="target"
         position={Position.Top}
         style={{ top: -8, background: '#555' }}
       />
 
-      {/* Chat History */}
       <div className="flex flex-col space-y-2 mb-2">
         {chatHistory.map((msg, index) => (
           <div
@@ -72,19 +103,12 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
               {msg.content}
             </div>
             {msg.sender === 'assistant' &&
-              // Hide "Branch" button for the last message of a leaf node
               !(isLeaf && index === lastMessageIndex) && (
                 <button
-                  onClick={() => {
-                    console.log(
-                      `Branch button clicked for messageId: ${msg.id}`
-                    );
-                    onBranch(msg.id);
-                  }}
+                  onClick={() => onBranch(msg.id)}
                   className="ml-2 text-gray-400 hover:text-green-500 transition-colors duration-200"
                   style={{ fontSize: '12px', padding: '2px' }}
                 >
-                  {/* Branch Icon (Optional) */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
@@ -99,7 +123,6 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
         ))}
       </div>
 
-      {/* Input Field - Only render if isLeaf is true */}
       {isLeaf && (
         <div className="mt-2">
           <div className="flex items-center">
@@ -120,7 +143,6 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
               className="ml-2 text-blue-500 hover:text-blue-600"
               aria-label="Send message"
             >
-              {/* Send Icon */}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="currentColor"
@@ -134,7 +156,6 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
         </div>
       )}
 
-      {/* Source Handle at the Bottom */}
       <Handle
         type="source"
         position={Position.Bottom}
@@ -255,6 +276,64 @@ const Page = () => {
     edges: [],
   });
 
+  const handleDelete = (nodeId: string) => {
+    setFlowData((prevFlowData) => {
+      const { nodes, edges } = prevFlowData;
+
+      // Helper function to get all descendant nodes
+      const getDescendants = (
+        nodeId: string,
+        edges: Edge[]
+      ): string[] => {
+        const children = edges
+          .filter((edge) => edge.source === nodeId)
+          .map((edge) => edge.target);
+
+        const descendants = [...children];
+        children.forEach((childId) => {
+          descendants.push(...getDescendants(childId, edges));
+        });
+
+        return descendants;
+      };
+
+      // Get all nodes to delete (selected node and its descendants)
+      const nodesToDelete = [
+        nodeId,
+        ...getDescendants(nodeId, edges),
+      ];
+
+      // Filter out the deleted nodes
+      const updatedNodes = nodes.filter(
+        (node) => !nodesToDelete.includes(node.id)
+      );
+
+      // Filter out edges connected to deleted nodes
+      const updatedEdges = edges.filter(
+        (edge) =>
+          !nodesToDelete.includes(edge.source) &&
+          !nodesToDelete.includes(edge.target)
+      );
+
+      // Apply layout to remaining nodes
+      const layouted = getLayoutedNodesAndEdges(
+        updatedNodes,
+        updatedEdges
+      );
+
+      // Update isLeaf status
+      const nodesWithIsLeaf = updateIsLeaf(
+        layouted.nodes,
+        layouted.edges
+      );
+
+      return {
+        nodes: nodesWithIsLeaf,
+        edges: layouted.edges,
+      };
+    });
+  };
+
   const handleSendMessage = (nodeId: string, message: string) => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
@@ -286,16 +365,12 @@ const Page = () => {
         return node;
       });
 
-      // Apply layout
       const layouted = getLayoutedNodesAndEdges(updatedNodes, edges);
-
-      // Update isLeaf status
       const nodesWithIsLeaf = updateIsLeaf(
         layouted.nodes,
         layouted.edges
       );
 
-      // Return updated flow data
       return {
         nodes: nodesWithIsLeaf,
         edges: layouted.edges,
@@ -304,10 +379,6 @@ const Page = () => {
   };
 
   const handleBranch = (nodeId: string, messageId: string) => {
-    console.log(
-      `handleBranch called with nodeId: ${nodeId}, messageId: ${messageId}`
-    );
-
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
@@ -324,13 +395,11 @@ const Page = () => {
 
       if (messageIndex === -1) return prevFlowData;
 
-      // Create new IDs
       const timestamp = Date.now();
       const branchNodeId = `${timestamp}-branch`;
       const continuationNodeId = `${timestamp}-continuation`;
       const newBranchNodeId = `${timestamp}-newbranch`;
 
-      // Chat histories
       const chatHistoryUpToBranch = originalData.chatHistory.slice(
         0,
         messageIndex + 1
@@ -339,7 +408,6 @@ const Page = () => {
         messageIndex + 1
       );
 
-      // Create new branch node (up to branch point)
       const branchNode: Node = {
         id: branchNodeId,
         type: 'messageNode',
@@ -348,30 +416,26 @@ const Page = () => {
           onSendMessage: (message) =>
             handleSendMessage(branchNodeId, message),
           onBranch: (msgId) => handleBranch(branchNodeId, msgId),
-          isLeaf: true, // Will be updated later
+          onDelete: handleDelete,
+          isLeaf: true,
         },
         position: originalNode.position,
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
       };
 
-      // Remove the original node and add the branch node
       const updatedNodes = [...nodes];
       updatedNodes[originalNodeIndex] = branchNode;
 
-      // Adjust edges
       const updatedEdges = edges.map((edge) => {
         if (edge.target === nodeId) {
-          // Edge points to original node; redirect it to the new branch node
           return { ...edge, target: branchNodeId };
         }
         return edge;
       });
 
-      // Edges from branch node to continuation and new branch nodes
       const newEdges: Edge[] = [];
 
-      // Create continuation node if there is remaining chat history
       if (chatHistoryAfterBranch.length > 0) {
         const continuationNode: Node = {
           id: continuationNodeId,
@@ -382,7 +446,8 @@ const Page = () => {
               handleSendMessage(continuationNodeId, message),
             onBranch: (msgId) =>
               handleBranch(continuationNodeId, msgId),
-            isLeaf: true, // Will be updated later
+            onDelete: handleDelete,
+            isLeaf: true,
           },
           position: {
             x: branchNode.position.x,
@@ -403,7 +468,6 @@ const Page = () => {
           style: { stroke: '#000', strokeWidth: 2 },
         });
 
-        // Redirect edges originating from the original node to the continuation node
         edges.forEach((edge) => {
           if (edge.source === nodeId) {
             updatedEdges.push({
@@ -413,7 +477,6 @@ const Page = () => {
           }
         });
       } else {
-        // No continuation; redirect edges originating from the original node to the branch node
         edges.forEach((edge) => {
           if (edge.source === nodeId) {
             updatedEdges.push({ ...edge, source: branchNodeId });
@@ -421,7 +484,6 @@ const Page = () => {
         });
       }
 
-      // Create new branch node (empty chat history)
       const branchOutEdges = updatedEdges.filter(
         (e) => e.source === branchNodeId
       );
@@ -435,6 +497,7 @@ const Page = () => {
           onSendMessage: (message) =>
             handleSendMessage(newBranchNodeId, message),
           onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
+          onDelete: handleDelete,
           isLeaf: true,
         },
         position: {
@@ -457,14 +520,10 @@ const Page = () => {
       });
 
       const allEdges = [...updatedEdges, ...newEdges];
-
-      // Apply layout
       const layouted = getLayoutedNodesAndEdges(
         updatedNodes,
         allEdges
       );
-
-      // Update isLeaf status
       const nodesWithIsLeaf = updateIsLeaf(
         layouted.nodes,
         layouted.edges
@@ -477,7 +536,6 @@ const Page = () => {
     });
   };
 
-  // Initialize the initial node
   useEffect(() => {
     const initialNode: Node = {
       id: '1',
@@ -492,7 +550,8 @@ const Page = () => {
         ],
         onSendMessage: (message) => handleSendMessage('1', message),
         onBranch: (messageId) => handleBranch('1', messageId),
-        isLeaf: true, // Initially, the root node is a leaf node
+        onDelete: handleDelete,
+        isLeaf: true,
       },
       position: { x: 0, y: 0 },
       sourcePosition: Position.Bottom,
@@ -500,8 +559,6 @@ const Page = () => {
     };
 
     const layouted = getLayoutedNodesAndEdges([initialNode], []);
-
-    // Update isLeaf status
     const nodesWithIsLeaf = updateIsLeaf(layouted.nodes, []);
 
     setFlowData({
@@ -518,11 +575,11 @@ const Page = () => {
           edges={flowData.edges}
           nodeTypes={nodeTypes}
           fitView
-          minZoom={0.01} // Adjusted minZoom
+          minZoom={0.01}
           translateExtent={[
             [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
             [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
-          ]} // Optional: Allow infinite panning
+          ]}
           style={{ backgroundColor: '#fff' }}
         >
           <MiniMap />
