@@ -276,6 +276,84 @@ const Page = () => {
     edges: [],
   });
 
+  const mergeNodes = (nodes: Node[], edges: Edge[]) => {
+    let merged = true;
+    let mergedNodes = [...nodes];
+    let mergedEdges = [...edges];
+
+    // Keep merging until no more merges are possible
+    while (merged) {
+      merged = false;
+
+      // Find nodes with exactly one child
+      const nodeChildCount = new Map<string, string[]>();
+      mergedEdges.forEach((edge) => {
+        const children = nodeChildCount.get(edge.source) || [];
+        children.push(edge.target);
+        nodeChildCount.set(edge.source, children);
+      });
+
+      // Check each node
+      for (const [nodeId, children] of nodeChildCount.entries()) {
+        if (children.length === 1) {
+          const childId = children[0];
+          const parentNode = mergedNodes.find((n) => n.id === nodeId);
+          const childNode = mergedNodes.find((n) => n.id === childId);
+
+          if (parentNode && childNode) {
+            // Check if child node has only this parent
+            const childParents = mergedEdges.filter(
+              (e) => e.target === childId
+            );
+            if (childParents.length === 1) {
+              // Merge the nodes
+              const mergedNode: Node = {
+                ...parentNode,
+                data: {
+                  ...parentNode.data,
+                  chatHistory: [
+                    ...(parentNode.data as MessageNodeData)
+                      .chatHistory,
+                    ...(childNode.data as MessageNodeData)
+                      .chatHistory,
+                  ],
+                  isLeaf: (childNode.data as MessageNodeData).isLeaf,
+                },
+              };
+
+              // Update nodes array
+              mergedNodes = mergedNodes.filter(
+                (n) => n.id !== nodeId && n.id !== childId
+              );
+              mergedNodes.push(mergedNode);
+
+              // Update edges
+              mergedEdges = mergedEdges.filter(
+                (e) => e.source !== nodeId && e.target !== childId
+              );
+
+              // Redirect child's outgoing edges to merged node
+              const childOutgoingEdges = edges.filter(
+                (e) => e.source === childId
+              );
+              childOutgoingEdges.forEach((edge) => {
+                mergedEdges.push({
+                  ...edge,
+                  source: nodeId,
+                });
+              });
+
+              merged = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return { nodes: mergedNodes, edges: mergedEdges };
+  };
+
   const handleDelete = (nodeId: string) => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
@@ -297,28 +375,32 @@ const Page = () => {
         return descendants;
       };
 
-      // Get all nodes to delete (selected node and its descendants)
+      // Get all nodes to delete
       const nodesToDelete = [
         nodeId,
         ...getDescendants(nodeId, edges),
       ];
 
-      // Filter out the deleted nodes
-      const updatedNodes = nodes.filter(
+      // Filter out the deleted nodes and edges
+      let updatedNodes = nodes.filter(
         (node) => !nodesToDelete.includes(node.id)
       );
-
-      // Filter out edges connected to deleted nodes
-      const updatedEdges = edges.filter(
+      let updatedEdges = edges.filter(
         (edge) =>
           !nodesToDelete.includes(edge.source) &&
           !nodesToDelete.includes(edge.target)
       );
 
-      // Apply layout to remaining nodes
-      const layouted = getLayoutedNodesAndEdges(
+      // Merge nodes where parent has single child
+      const { nodes: mergedNodes, edges: mergedEdges } = mergeNodes(
         updatedNodes,
         updatedEdges
+      );
+
+      // Apply layout
+      const layouted = getLayoutedNodesAndEdges(
+        mergedNodes,
+        mergedEdges
       );
 
       // Update isLeaf status
