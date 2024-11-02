@@ -109,9 +109,6 @@ const nodeTypes = {
   messageNode: MessageNode,
 };
 
-const nodeWidth = 250;
-const nodeHeight = 300;
-
 const getLayoutedNodesAndEdges = (
   nodes: Node[],
   edges: Edge[],
@@ -122,10 +119,22 @@ const getLayoutedNodesAndEdges = (
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: direction });
 
+  // Constants for estimating node sizes
+  const baseNodeHeight = 100; // Base height for a node (e.g., padding, input field)
+  const messageHeight = 30; // Estimated height per message
+  const nodeWidth = 500; // Width of nodes (can adjust as needed)
+
   nodes.forEach((node) => {
+    const nodeData = node.data as MessageNodeData;
+    const numMessages = nodeData.chatHistory.length;
+
+    // Estimate the node height
+    const estimatedHeight =
+      baseNodeHeight + numMessages * messageHeight;
+
     dagreGraph.setNode(node.id, {
       width: nodeWidth,
-      height: nodeHeight,
+      height: estimatedHeight + 3 * messageHeight,
     });
   });
 
@@ -139,7 +148,14 @@ const getLayoutedNodesAndEdges = (
     const nodeWithPosition = dagreGraph.node(node.id);
     node.position = {
       x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
+      y:
+        nodeWithPosition.y -
+        (nodeWithPosition.height || baseNodeHeight) / 2,
+    };
+    // Optional: Set the node's style to match the estimated size
+    node.style = {
+      width: nodeWidth,
+      height: nodeWithPosition.height,
     };
     return node;
   });
