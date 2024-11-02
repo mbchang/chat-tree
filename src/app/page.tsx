@@ -244,9 +244,12 @@ const Page = () => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
-      const originalNode = nodes.find((n) => n.id === nodeId);
-      if (!originalNode) return prevFlowData;
+      const originalNodeIndex = nodes.findIndex(
+        (n) => n.id === nodeId
+      );
+      if (originalNodeIndex === -1) return prevFlowData;
 
+      const originalNode = nodes[originalNodeIndex];
       const originalData = originalNode.data as MessageNodeData;
       const messageIndex = originalData.chatHistory.findIndex(
         (msg) => msg.id === messageId
@@ -285,27 +288,78 @@ const Page = () => {
         targetPosition: Position.Top,
       };
 
-      // Create continuation node (after branch point)
-      const continuationNode: Node = {
-        id: continuationNodeId,
-        type: 'messageNode',
-        data: {
-          chatHistory: chatHistoryAfterBranch,
-          onSendMessage: (message) =>
-            handleSendMessage(continuationNodeId, message),
-          onBranch: (msgId) =>
-            handleBranch(continuationNodeId, msgId),
-          isLeaf: true, // Will be updated later
-        },
-        position: {
-          x: originalNode.position.x,
-          y: originalNode.position.y + 200,
-        },
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
-      };
+      // Remove the original node and add the branch node
+      const updatedNodes = [...nodes];
+      updatedNodes[originalNodeIndex] = branchNode;
+
+      // Adjust edges
+      const updatedEdges = edges.map((edge) => {
+        if (edge.target === nodeId) {
+          // Edge points to original node; redirect it to the new branch node
+          return { ...edge, target: branchNodeId };
+        }
+        return edge;
+      });
+
+      // Edges from branch node to continuation and new branch nodes
+      const newEdges: Edge[] = [];
+
+      // Create continuation node if there is remaining chat history
+      if (chatHistoryAfterBranch.length > 0) {
+        const continuationNode: Node = {
+          id: continuationNodeId,
+          type: 'messageNode',
+          data: {
+            chatHistory: chatHistoryAfterBranch,
+            onSendMessage: (message) =>
+              handleSendMessage(continuationNodeId, message),
+            onBranch: (msgId) =>
+              handleBranch(continuationNodeId, msgId),
+            isLeaf: true, // Will be updated later
+          },
+          position: {
+            x: branchNode.position.x,
+            y: branchNode.position.y + 200,
+          },
+          sourcePosition: Position.Bottom,
+          targetPosition: Position.Top,
+        };
+
+        updatedNodes.push(continuationNode);
+
+        newEdges.push({
+          id: `e${branchNodeId}-${continuationNodeId}`,
+          source: branchNodeId,
+          target: continuationNodeId,
+          type: 'default',
+          animated: true,
+          style: { stroke: '#000', strokeWidth: 2 },
+        });
+
+        // Redirect edges originating from the original node to the continuation node
+        edges.forEach((edge) => {
+          if (edge.source === nodeId) {
+            updatedEdges.push({
+              ...edge,
+              source: continuationNodeId,
+            });
+          }
+        });
+      } else {
+        // No continuation; redirect edges originating from the original node to the branch node
+        edges.forEach((edge) => {
+          if (edge.source === nodeId) {
+            updatedEdges.push({ ...edge, source: branchNodeId });
+          }
+        });
+      }
 
       // Create new branch node (empty chat history)
+      const branchOutEdges = updatedEdges.filter(
+        (e) => e.source === branchNodeId
+      );
+      const numExistingBranches = branchOutEdges.length;
+
       const newBranchNode: Node = {
         id: newBranchNodeId,
         type: 'messageNode',
@@ -314,58 +368,33 @@ const Page = () => {
           onSendMessage: (message) =>
             handleSendMessage(newBranchNodeId, message),
           onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
-          isLeaf: true, // Initially a leaf node
+          isLeaf: true,
         },
         position: {
-          x: originalNode.position.x + 300,
-          y: originalNode.position.y + 200,
+          x: branchNode.position.x + 300 * numExistingBranches,
+          y: branchNode.position.y + 200,
         },
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
       };
 
-      // Adjust edges
-      const newEdges = edges.map((edge) => {
-        if (edge.target === nodeId) {
-          // Edge points to original node; redirect it to the new branch node
-          return { ...edge, target: branchNodeId };
-        } else if (edge.source === nodeId) {
-          // Edge originates from original node; redirect it from the continuation node
-          return { ...edge, source: continuationNodeId };
-        }
-        return edge;
+      updatedNodes.push(newBranchNode);
+
+      newEdges.push({
+        id: `e${branchNodeId}-${newBranchNodeId}`,
+        source: branchNodeId,
+        target: newBranchNodeId,
+        type: 'default',
+        animated: true,
+        style: { stroke: '#000', strokeWidth: 2 },
       });
 
-      // Edges from branch node to continuation and new branch nodes
-      newEdges.push(
-        {
-          id: `e${branchNodeId}-${continuationNodeId}`,
-          source: branchNodeId,
-          target: continuationNodeId,
-          type: 'default',
-          animated: true,
-          style: { stroke: '#000', strokeWidth: 2 },
-        },
-        {
-          id: `e${branchNodeId}-${newBranchNodeId}`,
-          source: branchNodeId,
-          target: newBranchNodeId,
-          type: 'default',
-          animated: true,
-          style: { stroke: '#000', strokeWidth: 2 },
-        }
-      );
-
-      // Remove the original node
-      const updatedNodes = nodes.filter((n) => n.id !== nodeId);
-
-      // Add new nodes
-      updatedNodes.push(branchNode, continuationNode, newBranchNode);
+      const allEdges = [...updatedEdges, ...newEdges];
 
       // Apply layout
       const layouted = getLayoutedNodesAndEdges(
         updatedNodes,
-        newEdges
+        allEdges
       );
 
       // Update isLeaf status
