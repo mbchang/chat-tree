@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   MiniMap,
@@ -15,6 +15,7 @@ import ReactFlow, {
   useEdgesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import dagre from 'dagre';
 
 type MessageNodeData = {
   message: string;
@@ -73,6 +74,45 @@ const nodeTypes = {
   messageNode: MessageNode,
 };
 
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+const nodeWidth = 220;
+const nodeHeight = 100;
+
+const getLayoutedNodesAndEdges = (
+  nodes: Node[],
+  edges: Edge[],
+  direction = 'TB' // Top to Bottom
+) => {
+  const isHorizontal = direction === 'LR';
+  dagreGraph.setGraph({ rankdir: direction });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, {
+      width: nodeWidth,
+      height: nodeHeight,
+    });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    node.position = {
+      x: nodeWithPosition.x - nodeWidth / 2,
+      y: nodeWithPosition.y - nodeHeight / 2,
+    };
+    return node;
+  });
+
+  return { nodes: layoutedNodes, edges };
+};
+
 const Page = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -85,8 +125,8 @@ const Page = () => {
     setCurrentNodeId(nodeId);
   };
 
-  // Initialize the initial node after handleBranch is defined
-  React.useEffect(() => {
+  // Initialize the initial node
+  useEffect(() => {
     const initialNode: Node = {
       id: '1',
       type: 'messageNode',
@@ -95,11 +135,14 @@ const Page = () => {
         sender: 'assistant',
         onBranch: () => handleBranch('1'),
       },
-      position: { x: 250, y: 5 },
+      position: { x: 0, y: 0 },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
     };
-    setNodes([initialNode]);
+
+    const layouted = getLayoutedNodesAndEdges([initialNode], []);
+
+    setNodes(layouted.nodes);
   }, []);
 
   const submitMessage = () => {
@@ -107,8 +150,6 @@ const Page = () => {
       const timestamp = Date.now();
       const userNodeId = `${timestamp}-user`;
       const assistantNodeId = `${timestamp}-assistant`;
-
-      const parentNode = nodes.find((n) => n.id === currentNodeId);
 
       const userNode: Node = {
         id: userNodeId,
@@ -118,10 +159,7 @@ const Page = () => {
           sender: 'user',
           onBranch: () => handleBranch(userNodeId),
         },
-        position: {
-          x: (parentNode?.position.x || 0) + 200,
-          y: (parentNode?.position.y || 0) + 100,
-        },
+        position: { x: 0, y: 0 },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
       };
@@ -135,10 +173,7 @@ const Page = () => {
           sender: 'assistant',
           onBranch: () => handleBranch(assistantNodeId),
         },
-        position: {
-          x: userNode.position.x,
-          y: userNode.position.y + 100,
-        },
+        position: { x: 0, y: 0 },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
       };
@@ -163,8 +198,14 @@ const Page = () => {
         style: edgeStyle,
       };
 
-      setNodes((nds) => nds.concat([userNode, assistantNode]));
-      setEdges((eds) => eds.concat([userEdge, assistantEdge]));
+      const newNodes = [...nodes, userNode, assistantNode];
+      const newEdges = [...edges, userEdge, assistantEdge];
+
+      // Apply layout
+      const layouted = getLayoutedNodesAndEdges(newNodes, newEdges);
+
+      setNodes(layouted.nodes);
+      setEdges(layouted.edges);
 
       setInputValue('');
       setCurrentNodeId(null);
@@ -199,6 +240,7 @@ const Page = () => {
               boxShadow: '0 0 10px rgba(0,0,0,0.1)',
               display: 'flex',
               alignItems: 'center',
+              zIndex: 10,
             }}
           >
             <input
