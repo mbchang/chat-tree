@@ -41,6 +41,9 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
     }
   };
 
+  // Determine the index of the last message
+  const lastMessageIndex = chatHistory.length - 1;
+
   return (
     <div className="p-4 border border-gray-300 rounded bg-white text-black max-w-xs relative">
       {/* Target Handle at the Top */}
@@ -52,7 +55,7 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
 
       {/* Chat History */}
       <div className="flex flex-col space-y-2 mb-2">
-        {chatHistory.map((msg) => (
+        {chatHistory.map((msg, index) => (
           <div key={msg.id} className="flex items-start">
             <div
               className={`p-2 rounded ${
@@ -61,19 +64,21 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
             >
               {msg.content}
             </div>
-            {msg.sender === 'assistant' && (
-              <button
-                onClick={() => {
-                  console.log(
-                    `Branch button clicked for messageId: ${msg.id}`
-                  );
-                  onBranch(msg.id);
-                }}
-                className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Branch
-              </button>
-            )}
+            {msg.sender === 'assistant' &&
+              // Hide "Branch" button for the last message of a leaf node
+              !(isLeaf && index === lastMessageIndex) && (
+                <button
+                  onClick={() => {
+                    console.log(
+                      `Branch button clicked for messageId: ${msg.id}`
+                    );
+                    onBranch(msg.id);
+                  }}
+                  className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Branch
+                </button>
+              )}
           </div>
         ))}
       </div>
@@ -99,11 +104,11 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
               className="ml-2 text-blue-500 hover:text-blue-600"
               aria-label="Send message"
             >
-              {/* Right Arrow Icon */}
+              {/* Send Icon */}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="currentColor"
-                viewBox="0 0 512 512" // Adjusted viewBox to fit the larger path
+                viewBox="0 0 512 512"
                 className="h-5 w-5"
               >
                 <path d="M440.6 273.4c4.7-4.5 7.4-10.8 7.4-17.4s-2.7-12.8-7.4-17.4l-176-168c-9.6-9.2-24.8-8.8-33.9 .8s-8.8 24.8 .8 33.9L364.1 232 24 232c-13.3 0-24 10.7-24 24s10.7 24 24 24l340.1 0L231.4 406.6c-9.6 9.2-9.9 24.3-.8 33.9s24.3 9.9 33.9 .8l176-168z" />
