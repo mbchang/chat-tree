@@ -27,6 +27,7 @@ type MessageNodeData = {
   onBranch: (messageId: string) => void;
   isLeaf: boolean;
 };
+
 // MessageNode Component
 const MessageNode = ({ data }: { data: MessageNodeData }) => {
   const { chatHistory, onSendMessage, onBranch, isLeaf } = data;
@@ -96,15 +97,16 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
             <button
               onClick={sendMessage}
               className="ml-2 text-blue-500 hover:text-blue-600"
+              aria-label="Send message"
             >
-              {/* Send Icon */}
+              {/* Paper Airplane Icon */}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
                 fill="currentColor"
-                viewBox="0 0 20 20"
+                viewBox="0 0 24 24"
+                className="h-6 w-6 transform rotate-30"
               >
-                <path d="M2.94 2.94a1.5 1.5 0 012.12 0L17 14.88a1.5 1.5 0 11-2.12 2.12L2.94 5.06a1.5 1.5 0 010-2.12z" />
+                <path d="M2.01 21l20.98-9L2.01 3v7l15 2-15 2z" />
               </svg>
             </button>
           </div>
