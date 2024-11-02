@@ -88,9 +88,19 @@ const MessageNode = ({
   };
 
   const sendMessage = () => {
-    if (inputValue.trim() !== '') {
-      onSendMessage(inputValue);
+    const trimmedInput = inputValue.trim();
+    if (trimmedInput !== '') {
+      onSendMessage(trimmedInput);
       setInputValue('');
+    }
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevents newline
+      sendMessage(); // Sends the message
     }
   };
 
@@ -180,16 +190,11 @@ const MessageNode = ({
       {isLeaf && (
         <div className="mt-2">
           <div className="flex items-center">
-            <input
-              type="text"
+            <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Enter your message"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  sendMessage();
-                }
-              }}
+              onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()} // Prevent node click handler
               className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 interactive-element"
             />
