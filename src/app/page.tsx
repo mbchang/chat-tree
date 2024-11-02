@@ -14,6 +14,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
+import ReactMarkdown from 'react-markdown';
 
 type ChatMessage = {
   id: string;
@@ -30,6 +31,7 @@ type MessageNodeData = {
 };
 
 // MessageNode Component
+
 const MessageNode = ({
   data,
   id,
@@ -43,9 +45,19 @@ const MessageNode = ({
   const [isHoveringDelete, setIsHoveringDelete] = useState(false);
 
   const sendMessage = () => {
-    if (inputValue.trim() !== '') {
-      onSendMessage(inputValue);
+    const trimmedInput = inputValue.trim();
+    if (trimmedInput !== '') {
+      onSendMessage(trimmedInput);
       setInputValue('');
+    }
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevents newline
+      sendMessage(); // Sends the message
     }
   };
 
@@ -78,13 +90,12 @@ const MessageNode = ({
         </div>
       </div>
 
-      {/* Rest of the MessageNode component remains the same */}
+      {/* Messages */}
       <Handle
         type="target"
         position={Position.Top}
         style={{ top: -8, background: '#555' }}
       />
-
       <div className="flex flex-col space-y-2 mb-2">
         {chatHistory.map((msg, index) => (
           <div
@@ -100,7 +111,7 @@ const MessageNode = ({
                   : 'bg-gray-200 text-black'
               }`}
             >
-              {msg.content}
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
             </div>
             {msg.sender === 'assistant' &&
               !(isLeaf && index === lastMessageIndex) && (
@@ -123,20 +134,17 @@ const MessageNode = ({
         ))}
       </div>
 
+      {/* Input area */}
       {isLeaf && (
         <div className="mt-2">
           <div className="flex items-center">
-            <input
-              type="text"
+            <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Enter your message"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  sendMessage();
-                }
-              }}
-              className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600"
+              onKeyDown={handleKeyDown}
+              className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 resize-none"
+              rows={2}
             />
             <button
               onClick={sendMessage}
