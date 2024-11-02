@@ -2,13 +2,12 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   MiniMap,
   Controls,
   Background,
-  Position,
   Node,
   Edge,
   useNodesState,
@@ -31,6 +30,7 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
         border: '1px solid black',
         borderRadius: 5,
         background: sender === 'user' ? '#e0f7fa' : '#e8eaf6',
+        color: '#000', // Ensure text is black
       }}
     >
       <div>{message}</div>
@@ -48,23 +48,44 @@ const nodeTypes = {
 };
 
 const Page = () => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const initialNodes: Node[] = [
+    {
+      id: '1',
+      type: 'messageNode',
+      data: {
+        message: 'Hello! How can I assist you today?',
+        sender: 'assistant',
+        onBranch: () => handleBranch('1'),
+      },
+      position: { x: 250, y: 5 },
+    },
+  ];
+
+  const [nodes, setNodes, onNodesChange] =
+    useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [inputValue, setInputValue] = useState('');
+  const [currentNodeId, setCurrentNodeId] = useState<string | null>(
+    null
+  );
 
   const handleBranch = (nodeId: string) => {
-    const message = prompt('Enter your message for the new branch:');
-    if (message) {
+    setCurrentNodeId(nodeId);
+  };
+
+  const submitMessage = () => {
+    if (inputValue && currentNodeId) {
       const timestamp = Date.now();
       const userNodeId = `${timestamp}-user`;
       const assistantNodeId = `${timestamp}-assistant`;
 
-      const parentNode = nodes.find((n) => n.id === nodeId);
+      const parentNode = nodes.find((n) => n.id === currentNodeId);
 
       const userNode: Node = {
         id: userNodeId,
         type: 'messageNode',
         data: {
-          message,
+          message: inputValue,
           sender: 'user',
           onBranch: () => handleBranch(userNodeId),
         },
@@ -74,7 +95,7 @@ const Page = () => {
         },
       };
 
-      const assistantMessage = 'Assistant response to: ' + message;
+      const assistantMessage = 'Assistant response to: ' + inputValue;
       const assistantNode: Node = {
         id: assistantNodeId,
         type: 'messageNode',
@@ -90,8 +111,8 @@ const Page = () => {
       };
 
       const userEdge: Edge = {
-        id: `e${nodeId}-${userNodeId}`,
-        source: nodeId,
+        id: `e${currentNodeId}-${userNodeId}`,
+        source: currentNodeId,
         target: userNodeId,
       };
 
@@ -103,27 +124,13 @@ const Page = () => {
 
       setNodes((nds) => nds.concat([userNode, assistantNode]));
       setEdges((eds) => eds.concat([userEdge, assistantEdge]));
+      setInputValue('');
+      setCurrentNodeId(null);
     }
   };
 
-  // Initialize the initial node
-  useEffect(() => {
-    const initialNode: Node = {
-      id: '1',
-      type: 'messageNode',
-      data: {
-        message: 'Hello! How can I assist you today?',
-        sender: 'assistant',
-        onBranch: () => handleBranch('1'),
-      },
-      position: { x: 250, y: 5 },
-    };
-
-    setNodes([initialNode]);
-  }, []);
-
   return (
-    <div style={{ height: '100vh' }}>
+    <div style={{ height: '100vh', position: 'relative' }}>
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -137,6 +144,41 @@ const Page = () => {
           <Controls />
           <Background color="#aaa" gap={16} />
         </ReactFlow>
+        {currentNodeId && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 20,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: '#fff',
+              padding: 10,
+              borderRadius: 5,
+              boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Enter your message"
+              style={{
+                padding: 5,
+                marginRight: 10,
+                border: '1px solid #ccc',
+                borderRadius: 3,
+              }}
+            />
+            <button
+              onClick={submitMessage}
+              style={{ padding: '5px 10px' }}
+            >
+              Send
+            </button>
+          </div>
+        )}
       </ReactFlowProvider>
     </div>
   );
