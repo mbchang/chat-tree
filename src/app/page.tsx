@@ -106,9 +106,6 @@ const nodeTypes = {
   messageNode: MessageNode,
 };
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 const nodeWidth = 250;
 const nodeHeight = 300;
 
@@ -117,6 +114,9 @@ const getLayoutedNodesAndEdges = (
   edges: Edge[],
   direction = 'TB' // Top to Bottom
 ) => {
+  // Instantiate a new dagreGraph for each layout
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: direction });
 
   nodes.forEach((node) => {
@@ -203,77 +203,83 @@ const Page = () => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
-      const currentNode = nodes.find((n) => n.id === nodeId);
-      if (!currentNode) return prevFlowData;
+      const originalNodeIndex = nodes.findIndex(
+        (n) => n.id === nodeId
+      );
+      if (originalNodeIndex === -1) return prevFlowData;
 
-      const currentData = currentNode.data as MessageNodeData;
-      const messageIndex = currentData.chatHistory.findIndex(
+      const originalNode = nodes[originalNodeIndex];
+      const originalData = originalNode.data as MessageNodeData;
+      const messageIndex = originalData.chatHistory.findIndex(
         (msg) => msg.id === messageId
       );
 
       if (messageIndex === -1) return prevFlowData;
 
-      const beforeBranchChatHistory = currentData.chatHistory.slice(
+      // Create new chat histories
+      const chatHistoryUpToBranch = originalData.chatHistory.slice(
         0,
         messageIndex + 1
       );
-      const afterBranchChatHistory = currentData.chatHistory.slice(
+      const chatHistoryAfterBranch = originalData.chatHistory.slice(
         messageIndex + 1
       );
 
+      // Generate new IDs
       const timestamp = Date.now();
-      const branchNodeId = `${timestamp}-branch`;
       const continuationNodeId = `${timestamp}-continuation`;
       const newBranchNodeId = `${timestamp}-newbranch`;
 
-      // Create nodes
-      const branchNode: Node = {
-        id: branchNodeId,
-        type: 'messageNode',
+      // Modify the original node to have chat history up to branch point
+      const updatedOriginalNode: Node = {
+        ...originalNode,
         data: {
-          chatHistory: beforeBranchChatHistory,
-          onSendMessage: (message) =>
-            handleSendMessage(branchNodeId, message),
-          onBranch: (msgId) => handleBranch(branchNodeId, msgId),
+          ...originalNode.data,
+          chatHistory: chatHistoryUpToBranch,
         },
-        position: { x: 0, y: 0 },
-        sourcePosition: Position.Bottom,
-        targetPosition: Position.Top,
       };
 
+      // Create the continuation node (after branch point)
       const continuationNode: Node = {
         id: continuationNodeId,
         type: 'messageNode',
         data: {
-          chatHistory: afterBranchChatHistory,
+          chatHistory: chatHistoryAfterBranch,
           onSendMessage: (message) =>
             handleSendMessage(continuationNodeId, message),
           onBranch: (msgId) =>
             handleBranch(continuationNodeId, msgId),
         },
-        position: { x: 0, y: 0 },
+        position: {
+          x: originalNode.position.x - 200,
+          y: originalNode.position.y + 200,
+        },
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
       };
 
+      // Create the new branch node (empty chat history)
       const newBranchNode: Node = {
         id: newBranchNodeId,
         type: 'messageNode',
         data: {
-          chatHistory: beforeBranchChatHistory,
+          chatHistory: [], // Empty chat history to start fresh
           onSendMessage: (message) =>
             handleSendMessage(newBranchNodeId, message),
           onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
         },
-        position: { x: 0, y: 0 },
+        position: {
+          x: originalNode.position.x + 200,
+          y: originalNode.position.y + 200,
+        },
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
       };
 
-      // Create edges
+      // Create edges from the original node to continuation and new branch nodes
       const continuationEdge: Edge = {
-        id: `e${branchNodeId}-${continuationNodeId}`,
-        source: branchNodeId,
+        id: `e${nodeId}-${continuationNodeId}`,
+        source: nodeId,
         target: continuationNodeId,
         type: 'default',
         animated: true,
@@ -281,45 +287,27 @@ const Page = () => {
       };
 
       const newBranchEdge: Edge = {
-        id: `e${branchNodeId}-${newBranchNodeId}`,
-        source: branchNodeId,
+        id: `e${nodeId}-${newBranchNodeId}`,
+        source: nodeId,
         target: newBranchNodeId,
         type: 'default',
         animated: true,
         style: { stroke: '#000', strokeWidth: 2 },
       };
 
-      // Adjust existing edges
-      const updatedEdges = edges.map((edge) => {
-        if (edge.target === nodeId) {
-          return { ...edge, target: branchNodeId };
-        }
-        return edge;
-      });
+      const newEdges = [...edges, continuationEdge, newBranchEdge];
 
-      // Remove current node
-      const updatedNodes = nodes.filter((n) => n.id !== nodeId);
-
-      // Add new nodes and edges
-      const newNodes = [
-        ...updatedNodes,
-        branchNode,
-        continuationNode,
-        newBranchNode,
-      ];
-      const newEdges = [
-        ...updatedEdges,
-        continuationEdge,
-        newBranchEdge,
-      ];
+      // Update nodes: replace the original node with the updated one
+      const updatedNodes = [...nodes];
+      updatedNodes[originalNodeIndex] = updatedOriginalNode;
+      updatedNodes.push(continuationNode, newBranchNode);
 
       // Apply layout
-      const layouted = getLayoutedNodesAndEdges(newNodes, newEdges);
+      const layouted = getLayoutedNodesAndEdges(
+        updatedNodes,
+        newEdges
+      );
 
-      console.log('New Nodes:', layouted.nodes);
-      console.log('New Edges:', layouted.edges);
-
-      // Return updated flow data
       return {
         nodes: layouted.nodes,
         edges: layouted.edges,
