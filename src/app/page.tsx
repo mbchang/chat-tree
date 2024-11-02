@@ -280,32 +280,50 @@ const Page = () => {
     let merged = true;
     let mergedNodes = [...nodes];
     let mergedEdges = [...edges];
+    const processedPairs = new Set<string>(); // Track already processed node pairs
 
-    // Keep merging until no more merges are possible
     while (merged) {
       merged = false;
 
-      // Find nodes with exactly one child
+      // Build node relationship maps
       const nodeChildCount = new Map<string, string[]>();
+      const nodeParentCount = new Map<string, string[]>();
+
       mergedEdges.forEach((edge) => {
+        // Track children
         const children = nodeChildCount.get(edge.source) || [];
         children.push(edge.target);
         nodeChildCount.set(edge.source, children);
+
+        // Track parents
+        const parents = nodeParentCount.get(edge.target) || [];
+        parents.push(edge.source);
+        nodeParentCount.set(edge.target, parents);
       });
 
       // Check each node
       for (const [nodeId, children] of nodeChildCount.entries()) {
         if (children.length === 1) {
           const childId = children[0];
+          const pairKey = `${nodeId}-${childId}`;
+
+          // Skip if this pair was already processed
+          if (processedPairs.has(pairKey)) continue;
+
           const parentNode = mergedNodes.find((n) => n.id === nodeId);
           const childNode = mergedNodes.find((n) => n.id === childId);
 
           if (parentNode && childNode) {
-            // Check if child node has only this parent
-            const childParents = mergedEdges.filter(
-              (e) => e.target === childId
-            );
+            // Only merge if child has exactly one parent
+            const childParents = nodeParentCount.get(childId) || [];
             if (childParents.length === 1) {
+              // Check for circular references
+              const childDescendants = getDescendants(
+                childId,
+                mergedEdges
+              );
+              if (childDescendants.includes(nodeId)) continue;
+
               // Merge the nodes
               const mergedNode: Node = {
                 ...parentNode,
@@ -343,6 +361,7 @@ const Page = () => {
                 });
               });
 
+              processedPairs.add(pairKey);
               merged = true;
               break;
             }
@@ -353,6 +372,20 @@ const Page = () => {
 
     return { nodes: mergedNodes, edges: mergedEdges };
   };
+
+  // Helper function to get all descendants of a node
+  function getDescendants(nodeId: string, edges: Edge[]): string[] {
+    const children = edges
+      .filter((edge) => edge.source === nodeId)
+      .map((edge) => edge.target);
+
+    const descendants = [...children];
+    children.forEach((childId) => {
+      descendants.push(...getDescendants(childId, edges));
+    });
+
+    return descendants;
+  }
 
   const handleDelete = (nodeId: string) => {
     setFlowData((prevFlowData) => {
