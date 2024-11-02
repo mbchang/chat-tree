@@ -54,7 +54,12 @@ const MessageNode = ({ data }: { data: MessageNodeData }) => {
             </div>
             {msg.sender === 'assistant' && (
               <button
-                onClick={() => onBranch(msg.id)}
+                onClick={() => {
+                  console.log(
+                    `Branch button clicked for messageId: ${msg.id}`
+                  );
+                  onBranch(msg.id);
+                }}
                 className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
                 Branch
@@ -140,13 +145,19 @@ const getLayoutedNodesAndEdges = (
 };
 
 const Page = () => {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const [flowData, setFlowData] = useState<{
+    nodes: Node[];
+    edges: Edge[];
+  }>({
+    nodes: [],
+    edges: [],
+  });
 
   const handleSendMessage = (nodeId: string, message: string) => {
-    setNodes((currentNodes) => {
-      // Update the specific node's chat history
-      const updatedNodes = currentNodes.map((node) => {
+    setFlowData((prevFlowData) => {
+      const { nodes, edges } = prevFlowData;
+
+      const updatedNodes = nodes.map((node) => {
         if (node.id === nodeId) {
           const nodeData = node.data as MessageNodeData;
           const newChatHistory = [
@@ -173,64 +184,148 @@ const Page = () => {
         return node;
       });
 
-      // Return the updated nodes; the layout will be applied in useEffect
-      return updatedNodes;
+      // Apply layout
+      const layouted = getLayoutedNodesAndEdges(updatedNodes, edges);
+
+      // Return updated flow data
+      return {
+        nodes: layouted.nodes,
+        edges: layouted.edges,
+      };
     });
   };
 
   const handleBranch = (nodeId: string, messageId: string) => {
-    const parentNode = nodes.find((n) => n.id === nodeId);
-    if (!parentNode) return;
-
-    const parentData = parentNode.data as MessageNodeData;
-    const messageIndex = parentData.chatHistory.findIndex(
-      (msg) => msg.id === messageId
+    console.log(
+      `handleBranch called with nodeId: ${nodeId}, messageId: ${messageId}`
     );
 
-    if (messageIndex === -1) return;
+    setFlowData((prevFlowData) => {
+      const { nodes, edges } = prevFlowData;
 
-    // Create new chat history up to the selected message
-    const newChatHistory = parentData.chatHistory.slice(
-      0,
-      messageIndex + 1
-    );
+      const currentNode = nodes.find((n) => n.id === nodeId);
+      if (!currentNode) return prevFlowData;
 
-    // Create new node
-    const newNodeId = `${Date.now()}-branch`;
-    const newNode: Node = {
-      id: newNodeId,
-      type: 'messageNode',
-      data: {
-        chatHistory: newChatHistory,
-        onSendMessage: (message) =>
-          handleSendMessage(newNodeId, message),
-        onBranch: (msgId) => handleBranch(newNodeId, msgId),
-      },
-      position: { x: 0, y: 0 },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-    };
+      const currentData = currentNode.data as MessageNodeData;
+      const messageIndex = currentData.chatHistory.findIndex(
+        (msg) => msg.id === messageId
+      );
 
-    // Create new edge
-    const newEdge: Edge = {
-      id: `e${nodeId}-${newNodeId}`,
-      source: nodeId,
-      target: newNodeId,
-      type: 'default',
-      animated: true,
-      style: { stroke: '#000', strokeWidth: 2 },
-    };
+      if (messageIndex === -1) return prevFlowData;
 
-    // Update nodes and edges
-    setNodes((currentNodes) => [...currentNodes, newNode]);
-    setEdges((currentEdges) => [...currentEdges, newEdge]);
+      const beforeBranchChatHistory = currentData.chatHistory.slice(
+        0,
+        messageIndex + 1
+      );
+      const afterBranchChatHistory = currentData.chatHistory.slice(
+        messageIndex + 1
+      );
+
+      const timestamp = Date.now();
+      const branchNodeId = `${timestamp}-branch`;
+      const continuationNodeId = `${timestamp}-continuation`;
+      const newBranchNodeId = `${timestamp}-newbranch`;
+
+      // Create nodes
+      const branchNode: Node = {
+        id: branchNodeId,
+        type: 'messageNode',
+        data: {
+          chatHistory: beforeBranchChatHistory,
+          onSendMessage: (message) =>
+            handleSendMessage(branchNodeId, message),
+          onBranch: (msgId) => handleBranch(branchNodeId, msgId),
+        },
+        position: { x: 0, y: 0 },
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+      };
+
+      const continuationNode: Node = {
+        id: continuationNodeId,
+        type: 'messageNode',
+        data: {
+          chatHistory: afterBranchChatHistory,
+          onSendMessage: (message) =>
+            handleSendMessage(continuationNodeId, message),
+          onBranch: (msgId) =>
+            handleBranch(continuationNodeId, msgId),
+        },
+        position: { x: 0, y: 0 },
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+      };
+
+      const newBranchNode: Node = {
+        id: newBranchNodeId,
+        type: 'messageNode',
+        data: {
+          chatHistory: beforeBranchChatHistory,
+          onSendMessage: (message) =>
+            handleSendMessage(newBranchNodeId, message),
+          onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
+        },
+        position: { x: 0, y: 0 },
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+      };
+
+      // Create edges
+      const continuationEdge: Edge = {
+        id: `e${branchNodeId}-${continuationNodeId}`,
+        source: branchNodeId,
+        target: continuationNodeId,
+        type: 'default',
+        animated: true,
+        style: { stroke: '#000', strokeWidth: 2 },
+      };
+
+      const newBranchEdge: Edge = {
+        id: `e${branchNodeId}-${newBranchNodeId}`,
+        source: branchNodeId,
+        target: newBranchNodeId,
+        type: 'default',
+        animated: true,
+        style: { stroke: '#000', strokeWidth: 2 },
+      };
+
+      // Adjust existing edges
+      const updatedEdges = edges.map((edge) => {
+        if (edge.target === nodeId) {
+          return { ...edge, target: branchNodeId };
+        }
+        return edge;
+      });
+
+      // Remove current node
+      const updatedNodes = nodes.filter((n) => n.id !== nodeId);
+
+      // Add new nodes and edges
+      const newNodes = [
+        ...updatedNodes,
+        branchNode,
+        continuationNode,
+        newBranchNode,
+      ];
+      const newEdges = [
+        ...updatedEdges,
+        continuationEdge,
+        newBranchEdge,
+      ];
+
+      // Apply layout
+      const layouted = getLayoutedNodesAndEdges(newNodes, newEdges);
+
+      console.log('New Nodes:', layouted.nodes);
+      console.log('New Edges:', layouted.edges);
+
+      // Return updated flow data
+      return {
+        nodes: layouted.nodes,
+        edges: layouted.edges,
+      };
+    });
   };
-
-  // Apply layout whenever nodes or edges change
-  useEffect(() => {
-    const layouted = getLayoutedNodesAndEdges(nodes, edges);
-    setNodes(layouted.nodes);
-  }, [nodes.length, edges.length]);
 
   // Initialize the initial node
   useEffect(() => {
@@ -253,15 +348,20 @@ const Page = () => {
       targetPosition: Position.Top,
     };
 
-    setNodes([initialNode]);
+    const layouted = getLayoutedNodesAndEdges([initialNode], []);
+
+    setFlowData({
+      nodes: layouted.nodes,
+      edges: [],
+    });
   }, []);
 
   return (
     <div className="h-screen relative">
       <ReactFlowProvider>
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={flowData.nodes}
+          edges={flowData.edges}
           nodeTypes={nodeTypes}
           fitView
           style={{ backgroundColor: '#fff' }}
