@@ -136,6 +136,9 @@ const MessageNode = ({
     const node = getNodes().find((n) => n.id === id);
     if (!node) return;
 
+    // Get the node's dimensions
+    const nodeHeight = (node.style?.height as number) || 0;
+
     const currentZoom = getZoom();
     const targetZoom = 1.5;
     const steps = 20;
@@ -156,10 +159,15 @@ const MessageNode = ({
       const intermediateZoom =
         currentZoom + (targetZoom - currentZoom) * easeProgress;
 
-      setCenter(node.position.x + 300, node.position.y + 100, {
-        zoom: intermediateZoom,
-        duration: 50,
-      });
+      // Center on the bottom of the node by adding half the node height
+      setCenter(
+        node.position.x + 300, // Center horizontally
+        node.position.y + nodeHeight / 2, // Position at bottom of node
+        {
+          zoom: intermediateZoom,
+          duration: 50,
+        }
+      );
 
       step++;
     }, 20);
