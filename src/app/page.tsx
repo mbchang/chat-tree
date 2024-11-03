@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   MiniMap,
@@ -106,9 +106,35 @@ const MessageNode = ({
 
   const lastMessageIndex = chatHistory.length - 1;
 
+  // Reference to the message container
+  const messageContainerRef = useRef<HTMLDivElement>(null);
+
+  // Prevent scroll events from propagating to the canvas
+  useEffect(() => {
+    const messageContainer = messageContainerRef.current;
+
+    if (messageContainer) {
+      const handleWheel = (e: WheelEvent) => {
+        // Only prevent propagation if the container can scroll
+        if (
+          messageContainer.scrollHeight >
+          messageContainer.clientHeight
+        ) {
+          e.stopPropagation();
+        }
+      };
+
+      messageContainer.addEventListener('wheel', handleWheel);
+
+      return () => {
+        messageContainer.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, []);
+
   return (
     <div
-      className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px] cursor-pointer"
+      className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px]"
       onClick={handleNodeClick}
     >
       {/* Delete Button */}
@@ -139,6 +165,7 @@ const MessageNode = ({
         </div>
       </div>
 
+      {/* Target Handle at the Top */}
       <Handle
         type="target"
         position={Position.Top}
@@ -146,7 +173,12 @@ const MessageNode = ({
         className="interactive-element"
       />
 
-      <div className="flex flex-col space-y-2 mb-2">
+      {/* Message Container with max-height and overflow */}
+      <div
+        ref={messageContainerRef}
+        className="flex flex-col space-y-2 mb-2 overflow-y-auto"
+        style={{ maxHeight: '300px' }} // Adjust the maxHeight as needed
+      >
         {chatHistory.map((msg, index) => (
           <div
             key={msg.id}
