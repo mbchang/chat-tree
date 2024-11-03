@@ -31,6 +31,8 @@ type MessageNodeData = {
   isLeaf: boolean;
 };
 
+const maxNodeHeight = 350; // Maximum height before scrolling
+
 // MessageNode Component
 
 const MessageNode = ({
@@ -177,7 +179,7 @@ const MessageNode = ({
       <div
         ref={messageContainerRef}
         className="flex flex-col space-y-2 mb-2 overflow-y-auto"
-        style={{ maxHeight: '300px' }} // Adjust the maxHeight as needed
+        style={{ maxHeight: `${maxNodeHeight}px` }} // Adjust the maxHeight as needed
       >
         {chatHistory.map((msg, index) => (
           <div
@@ -284,19 +286,22 @@ const getLayoutedNodesAndEdges = (
 
   // Constants for node sizing
   const baseNodeHeight = 100;
-  const messageHeight = 40; // Increased from 30 to give more space
-  const nodeWidth = 600; // Increased from 500
-  const minHeight = 150; // Minimum height for nodes
+  const messageHeight = 40;
+  const nodeWidth = 600;
+  const minHeight = 150;
 
   // Calculate node dimensions
   nodes.forEach((node) => {
     const nodeData = node.data as MessageNodeData;
     const numMessages = nodeData.chatHistory.length;
 
-    // Calculate height with padding and minimum size
-    const estimatedHeight = Math.max(
-      minHeight,
-      baseNodeHeight + numMessages * messageHeight
+    // Calculate height with padding and constraints
+    const estimatedHeight = Math.min(
+      maxNodeHeight,
+      Math.max(
+        minHeight,
+        baseNodeHeight + numMessages * messageHeight
+      )
     );
 
     dagreGraph.setNode(node.id, {
