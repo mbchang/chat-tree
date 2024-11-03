@@ -33,6 +33,7 @@ type MessageNodeData = {
   onBranch: (messageId: string) => void;
   onDelete: (nodeId: string) => void;
   isLeaf: boolean;
+  isRoot?: boolean; // Add isRoot property
 };
 
 const maxNodeHeight = 350;
@@ -117,8 +118,14 @@ const MessageNode = ({
   data: MessageNodeData;
   id: string;
 }) => {
-  const { chatHistory, onSendMessage, onBranch, isLeaf, onDelete } =
-    data;
+  const {
+    chatHistory,
+    onSendMessage,
+    onBranch,
+    isLeaf,
+    onDelete,
+    isRoot,
+  } = data;
   const [inputValue, setInputValue] = useState('');
   const [isHoveringDelete, setIsHoveringDelete] = useState(false);
   const { getNodes, setCenter, getZoom } = useReactFlow();
@@ -215,32 +222,34 @@ const MessageNode = ({
       className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px]"
       onClick={handleNodeClick}
     >
-      <div
-        className="absolute -top-2 -right-2 z-10 cursor-pointer transition-opacity duration-200 interactive-element"
-        style={{ opacity: isHoveringDelete ? '1' : '0.3' }}
-        onMouseEnter={() => setIsHoveringDelete(true)}
-        onMouseLeave={() => setIsHoveringDelete(false)}
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(id);
-        }}
-      >
-        <div className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
+      {!isRoot && ( // Only show delete button if not root node
+        <div
+          className="absolute -top-2 -right-2 z-10 cursor-pointer transition-opacity duration-200 interactive-element"
+          style={{ opacity: isHoveringDelete ? '1' : '0.3' }}
+          onMouseEnter={() => setIsHoveringDelete(true)}
+          onMouseLeave={() => setIsHoveringDelete(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(id);
+          }}
+        >
+          <div className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </div>
         </div>
-      </div>
+      )}
 
       <Handle
         type="target"
@@ -573,6 +582,12 @@ const Page = () => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
+      // Check if the node is root (id === '1')
+      const nodeToDelete = nodes.find((node) => node.id === nodeId);
+      if (nodeToDelete?.data.isRoot) {
+        return prevFlowData; // Don't delete if it's the root node
+      }
+
       // Helper function to get all descendant nodes
       const getDescendants = (
         nodeId: string,
@@ -715,6 +730,7 @@ const Page = () => {
           onBranch: (msgId) => handleBranch(branchNodeId, msgId),
           onDelete: handleDelete,
           isLeaf: true,
+          isRoot: originalData.isRoot, // Preserve isRoot status
         },
         position: originalNode.position,
         sourcePosition: Position.Bottom,
@@ -745,6 +761,7 @@ const Page = () => {
               handleBranch(continuationNodeId, msgId),
             onDelete: handleDelete,
             isLeaf: true,
+            isRoot: false, // New continuation should never be root
           },
           position: {
             x: branchNode.position.x,
@@ -796,6 +813,7 @@ const Page = () => {
           onBranch: (msgId) => handleBranch(newBranchNodeId, msgId),
           onDelete: handleDelete,
           isLeaf: true,
+          isRoot: false, // New branch should never be root
         },
         position: {
           x: branchNode.position.x + 300 * numExistingBranches,
@@ -849,6 +867,7 @@ const Page = () => {
         onBranch: (messageId) => handleBranch('1', messageId),
         onDelete: handleDelete,
         isLeaf: true,
+        isRoot: true, // Add isRoot flag for the initial node
       },
       position: { x: 0, y: 0 },
       sourcePosition: Position.Bottom,
