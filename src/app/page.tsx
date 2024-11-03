@@ -16,6 +16,10 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import ReactMarkdown from 'react-markdown';
+import 'katex/dist/katex.min.css';
+import { InlineMath, BlockMath } from 'react-katex';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 type ChatMessage = {
   id: string;
@@ -27,14 +31,85 @@ type MessageNodeData = {
   chatHistory: ChatMessage[];
   onSendMessage: (message: string) => void;
   onBranch: (messageId: string) => void;
-  onDelete: (nodeId: string) => void; // Add this line
+  onDelete: (nodeId: string) => void;
   isLeaf: boolean;
 };
 
-const maxNodeHeight = 350; // Maximum height before scrolling
+const maxNodeHeight = 350;
+
+// MessageContent Component
+const MessageContent: React.FC<{ content: string }> = ({
+  content,
+}) => {
+  const parseContent = (text: string) => {
+    const segments: { type: 'text' | 'latex'; content: string }[] =
+      [];
+    let currentText = '';
+    let i = 0;
+
+    while (i < text.length) {
+      if (text.slice(i, i + 2) === '$$') {
+        if (currentText) {
+          segments.push({ type: 'text', content: currentText });
+          currentText = '';
+        }
+
+        const end = text.indexOf('$$', i + 2);
+        if (end === -1) {
+          currentText += text.slice(i);
+          break;
+        }
+
+        segments.push({
+          type: 'latex',
+          content: text.slice(i + 2, end),
+        });
+        i = end + 2;
+      } else {
+        currentText += text[i];
+        i++;
+      }
+    }
+
+    if (currentText) {
+      segments.push({ type: 'text', content: currentText });
+    }
+
+    return segments;
+  };
+
+  const segments = parseContent(content);
+
+  return (
+    <>
+      {segments.map((segment, index) => {
+        if (segment.type === 'latex') {
+          try {
+            return segment.content.includes('\n') ? (
+              <BlockMath key={index} math={segment.content} />
+            ) : (
+              <InlineMath key={index} math={segment.content} />
+            );
+          } catch (error) {
+            return <span key={index}>Error rendering LaTeX</span>;
+          }
+        } else {
+          return (
+            <ReactMarkdown
+              key={index}
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+            >
+              {segment.content}
+            </ReactMarkdown>
+          );
+        }
+      })}
+    </>
+  );
+};
 
 // MessageNode Component
-
 const MessageNode = ({
   data,
   id,
@@ -47,6 +122,7 @@ const MessageNode = ({
   const [inputValue, setInputValue] = useState('');
   const [isHoveringDelete, setIsHoveringDelete] = useState(false);
   const { getNodes, setCenter, getZoom } = useReactFlow();
+  const messageContainerRef = useRef<HTMLDivElement>(null);
 
   const handleNodeClick = (event: React.MouseEvent) => {
     if (
@@ -61,8 +137,8 @@ const MessageNode = ({
     if (!node) return;
 
     const currentZoom = getZoom();
-    const targetZoom = 1.5; // Desired zoom level
-    const steps = 20; // Number of animation steps
+    const targetZoom = 1.5;
+    const steps = 20;
 
     let step = 0;
     const interval = setInterval(() => {
@@ -81,12 +157,12 @@ const MessageNode = ({
         currentZoom + (targetZoom - currentZoom) * easeProgress;
 
       setCenter(node.position.x + 300, node.position.y + 100, {
-        zoom: intermediateZoom, // Use zoom here
+        zoom: intermediateZoom,
         duration: 50,
       });
 
       step++;
-    }, 20); // 20ms interval for smooth animation
+    }, 20);
   };
 
   const sendMessage = () => {
@@ -101,23 +177,15 @@ const MessageNode = ({
     e: React.KeyboardEvent<HTMLTextAreaElement>
   ) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // Prevents newline
-      sendMessage(); // Sends the message
+      e.preventDefault();
+      sendMessage();
     }
   };
 
-  const lastMessageIndex = chatHistory.length - 1;
-
-  // Reference to the message container
-  const messageContainerRef = useRef<HTMLDivElement>(null);
-
-  // Prevent scroll events from propagating to the canvas
   useEffect(() => {
     const messageContainer = messageContainerRef.current;
-
     if (messageContainer) {
       const handleWheel = (e: WheelEvent) => {
-        // Only prevent propagation if the container can scroll
         if (
           messageContainer.scrollHeight >
           messageContainer.clientHeight
@@ -125,28 +193,27 @@ const MessageNode = ({
           e.stopPropagation();
         }
       };
-
       messageContainer.addEventListener('wheel', handleWheel);
-
       return () => {
         messageContainer.removeEventListener('wheel', handleWheel);
       };
     }
   }, []);
 
+  const lastMessageIndex = data.chatHistory.length - 1;
+
   return (
     <div
       className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px]"
       onClick={handleNodeClick}
     >
-      {/* Delete Button */}
       <div
         className="absolute -top-2 -right-2 z-10 cursor-pointer transition-opacity duration-200 interactive-element"
         style={{ opacity: isHoveringDelete ? '1' : '0.3' }}
         onMouseEnter={() => setIsHoveringDelete(true)}
         onMouseLeave={() => setIsHoveringDelete(false)}
         onClick={(e) => {
-          e.stopPropagation(); // Prevent node click handler
+          e.stopPropagation();
           onDelete(id);
         }}
       >
@@ -167,7 +234,6 @@ const MessageNode = ({
         </div>
       </div>
 
-      {/* Target Handle at the Top */}
       <Handle
         type="target"
         position={Position.Top}
@@ -175,11 +241,10 @@ const MessageNode = ({
         className="interactive-element"
       />
 
-      {/* Message Container with max-height and overflow */}
       <div
         ref={messageContainerRef}
         className="flex flex-col space-y-2 mb-2 overflow-y-auto"
-        style={{ maxHeight: `${maxNodeHeight}px` }} // Adjust the maxHeight as needed
+        style={{ maxHeight: `${maxNodeHeight}px` }}
       >
         {chatHistory.map((msg, index) => (
           <div
@@ -195,13 +260,13 @@ const MessageNode = ({
                   : 'bg-gray-200 text-black'
               }`}
             >
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
+              <MessageContent content={msg.content} />
             </div>
             {msg.sender === 'assistant' &&
               !(isLeaf && index === lastMessageIndex) && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Prevent node click handler
+                    e.stopPropagation();
                     onBranch(msg.id);
                   }}
                   className="ml-2 text-gray-400 hover:text-green-500 transition-colors duration-200 interactive-element"
@@ -229,12 +294,12 @@ const MessageNode = ({
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Enter your message"
               onKeyDown={handleKeyDown}
-              onClick={(e) => e.stopPropagation()} // Prevent node click handler
+              onClick={(e) => e.stopPropagation()}
               className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 interactive-element"
             />
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Prevent node click handler
+                e.stopPropagation();
                 sendMessage();
               }}
               className="ml-2 text-blue-500 hover:text-blue-600 interactive-element"
