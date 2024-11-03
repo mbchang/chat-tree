@@ -381,7 +381,7 @@ const Page = () => {
     let merged = true;
     let mergedNodes = [...nodes];
     let mergedEdges = [...edges];
-    const processedPairs = new Set<string>(); // Track already processed node pairs
+    const processedPairs = new Set<string>();
 
     while (merged) {
       merged = false;
@@ -402,70 +402,78 @@ const Page = () => {
         nodeParentCount.set(edge.target, parents);
       });
 
-      // Check each node
+      // First pass: identify all mergeable nodes
+      const mergeablePairs: Array<[string, string]> = [];
+
       for (const [nodeId, children] of nodeChildCount.entries()) {
         if (children.length === 1) {
           const childId = children[0];
           const pairKey = `${nodeId}-${childId}`;
 
-          // Skip if this pair was already processed
           if (processedPairs.has(pairKey)) continue;
 
-          const parentNode = mergedNodes.find((n) => n.id === nodeId);
+          const childParents = nodeParentCount.get(childId) || [];
+          if (childParents.length === 1) {
+            // Check for circular references
+            const childDescendants = getDescendants(
+              childId,
+              mergedEdges
+            );
+            if (!childDescendants.includes(nodeId)) {
+              mergeablePairs.push([nodeId, childId]);
+            }
+          }
+        }
+      }
+
+      // Second pass: perform merges
+      if (mergeablePairs.length > 0) {
+        merged = true;
+
+        for (const [parentId, childId] of mergeablePairs) {
+          const parentNode = mergedNodes.find(
+            (n) => n.id === parentId
+          );
           const childNode = mergedNodes.find((n) => n.id === childId);
 
           if (parentNode && childNode) {
-            // Only merge if child has exactly one parent
-            const childParents = nodeParentCount.get(childId) || [];
-            if (childParents.length === 1) {
-              // Check for circular references
-              const childDescendants = getDescendants(
-                childId,
-                mergedEdges
-              );
-              if (childDescendants.includes(nodeId)) continue;
+            const pairKey = `${parentId}-${childId}`;
+            processedPairs.add(pairKey);
 
-              // Merge the nodes
-              const mergedNode: Node = {
-                ...parentNode,
-                data: {
-                  ...parentNode.data,
-                  chatHistory: [
-                    ...(parentNode.data as MessageNodeData)
-                      .chatHistory,
-                    ...(childNode.data as MessageNodeData)
-                      .chatHistory,
-                  ],
-                  isLeaf: (childNode.data as MessageNodeData).isLeaf,
-                },
-              };
+            // Create merged node
+            const mergedNode: Node = {
+              ...parentNode,
+              data: {
+                ...parentNode.data,
+                chatHistory: [
+                  ...(parentNode.data as MessageNodeData).chatHistory,
+                  ...(childNode.data as MessageNodeData).chatHistory,
+                ],
+                isLeaf: (childNode.data as MessageNodeData).isLeaf,
+              },
+            };
 
-              // Update nodes array
-              mergedNodes = mergedNodes.filter(
-                (n) => n.id !== nodeId && n.id !== childId
-              );
-              mergedNodes.push(mergedNode);
+            // Update nodes array
+            mergedNodes = mergedNodes.filter(
+              (n) => n.id !== parentId && n.id !== childId
+            );
+            mergedNodes.push(mergedNode);
 
-              // Update edges
-              mergedEdges = mergedEdges.filter(
-                (e) => e.source !== nodeId && e.target !== childId
-              );
+            // Update edges
+            mergedEdges = mergedEdges.filter(
+              (e) => e.source !== parentId && e.target !== childId
+            );
 
-              // Redirect child's outgoing edges to merged node
-              const childOutgoingEdges = edges.filter(
-                (e) => e.source === childId
-              );
-              childOutgoingEdges.forEach((edge) => {
-                mergedEdges.push({
-                  ...edge,
-                  source: nodeId,
-                });
+            // Redirect child's outgoing edges to merged node
+            const childOutgoingEdges = edges.filter(
+              (e) => e.source === childId
+            );
+            childOutgoingEdges.forEach((edge) => {
+              mergedEdges.push({
+                ...edge,
+                source: parentId,
               });
-
-              processedPairs.add(pairKey);
-              merged = true;
-              break;
-            }
+            });
           }
         }
       }
