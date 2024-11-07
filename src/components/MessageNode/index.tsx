@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import MessageContent from '../MessageContent';
 import { maxNodeHeight } from '@/constants/layout';
-import { ChatMessage, MessageNodeData } from '@/types/chat';
+import { MessageNodeData } from '@/types/chat';
 
 // MessageNode Component
 const MessageNode = ({

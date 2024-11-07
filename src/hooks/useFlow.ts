@@ -7,6 +7,7 @@ import {
   getDescendants,
   mergeNodes,
 } from '@/utils/layout';
+import { getDebugResponse } from '@/services/ai';
 
 export const useFlow = () => {
   const [flowData, setFlowData] = useState<{
@@ -72,6 +73,8 @@ export const useFlow = () => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
+      const assistantMessage = getDebugResponse(message);
+
       const updatedNodes = nodes.map((node) => {
         if (node.id === nodeId) {
           const nodeData = node.data as MessageNodeData;
@@ -82,11 +85,7 @@ export const useFlow = () => {
               sender: 'user',
               content: message,
             },
-            {
-              id: `msg-${Date.now()}-assistant`,
-              sender: 'assistant',
-              content: `Assistant response to: ${message}`,
-            },
+            assistantMessage,
           ];
           return {
             ...node,
