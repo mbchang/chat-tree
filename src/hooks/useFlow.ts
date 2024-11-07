@@ -7,9 +7,9 @@ import {
   getDescendants,
   mergeNodes,
 } from '@/utils/layout';
-import { getDebugResponse } from '@/services/ai';
+import { getDebugResponse, getRealResponse } from '@/services/ai';
 
-export const useFlow = () => {
+export const useFlow = (isDebugMode: boolean = true) => {
   const [flowData, setFlowData] = useState<{
     nodes: Node[];
     edges: Edge[];
@@ -73,7 +73,9 @@ export const useFlow = () => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
-      const assistantMessage = getDebugResponse(message);
+      const assistantMessage = isDebugMode
+        ? getDebugResponse(message)
+        : getRealResponse(message);
 
       const updatedNodes = nodes.map((node) => {
         if (node.id === nodeId) {
