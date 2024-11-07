@@ -1,3 +1,5 @@
+// src/services/ai.ts
+
 import { ChatMessage } from '@/types/chat';
 
 export const getDebugResponse = (message: string): ChatMessage => {
@@ -8,13 +10,37 @@ export const getDebugResponse = (message: string): ChatMessage => {
   };
 };
 
-export const getRealResponse = (message: string): ChatMessage => {
-  // Mock for now, will replace with actual API call later
-  return {
-    id: `msg-${Date.now()}-assistant`,
-    sender: 'assistant',
-    content: `This would be a real API response to: ${message}`,
-  };
+export const getRealResponse = async (
+  message: string
+): Promise<ChatMessage> => {
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message }),
+    });
+
+    if (!response.ok) {
+      throw new Error('API request failed');
+    }
+
+    const data = await response.json();
+
+    return {
+      id: `msg-${Date.now()}-assistant`,
+      sender: 'assistant',
+      content: data.content,
+    };
+  } catch (error) {
+    console.error('Chat API error:', error);
+    return {
+      id: `msg-${Date.now()}-assistant`,
+      sender: 'assistant',
+      content: 'Sorry, there was an error generating the response.',
+    };
+  }
 };
 
 export interface AIService {
@@ -31,6 +57,12 @@ export class DebugAIService implements AIService {
   }
 }
 
-export const getAIService = (): AIService => {
-  return new DebugAIService();
+export class RealAIService implements AIService {
+  async getResponse(message: string): Promise<ChatMessage> {
+    return await getRealResponse(message);
+  }
+}
+
+export const getAIService = (isDebugMode: boolean): AIService => {
+  return isDebugMode ? new DebugAIService() : new RealAIService();
 };

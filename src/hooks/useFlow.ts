@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+// src/hooks/useFlow.ts
+
+import { useState, useEffect, useRef } from 'react';
 import { Node, Edge, Position } from 'reactflow';
-import { MessageNodeData } from '@/types/chat';
+import { MessageNodeData, ChatMessage } from '@/types/chat';
 import {
   getLayoutedNodesAndEdges,
   updateIsLeaf,
   getDescendants,
   mergeNodes,
 } from '@/utils/layout';
-import { getDebugResponse, getRealResponse } from '@/services/ai';
+import { getAIService, AIService } from '@/services/ai';
 
 export const useFlow = (isDebugMode: boolean = true) => {
   const [flowData, setFlowData] = useState<{
@@ -17,6 +19,21 @@ export const useFlow = (isDebugMode: boolean = true) => {
     nodes: [],
     edges: [],
   });
+
+  // Create a ref to hold the current isDebugMode value
+  const isDebugModeRef = useRef(isDebugMode);
+
+  // Update the ref whenever isDebugMode changes
+  useEffect(() => {
+    isDebugModeRef.current = isDebugMode;
+  }, [isDebugMode]);
+
+  // Initialize AIService based on the current mode
+  const aiServiceRef = useRef<AIService>(getAIService(isDebugMode));
+
+  useEffect(() => {
+    aiServiceRef.current = getAIService(isDebugMode);
+  }, [isDebugMode]);
 
   const handleDelete = (nodeId: string) => {
     setFlowData((prevFlowData) => {
@@ -69,31 +86,27 @@ export const useFlow = (isDebugMode: boolean = true) => {
     });
   };
 
-  const handleSendMessage = (nodeId: string, message: string) => {
+  const handleSendMessage = async (
+    nodeId: string,
+    message: string
+  ) => {
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
-
-      const assistantMessage = isDebugMode
-        ? getDebugResponse(message)
-        : getRealResponse(message);
-
       const updatedNodes = nodes.map((node) => {
         if (node.id === nodeId) {
           const nodeData = node.data as MessageNodeData;
-          const newChatHistory = [
-            ...nodeData.chatHistory,
-            {
-              id: `msg-${Date.now()}-user`,
-              sender: 'user',
-              content: message,
-            },
-            assistantMessage,
-          ];
           return {
             ...node,
             data: {
               ...nodeData,
-              chatHistory: newChatHistory,
+              chatHistory: [
+                ...nodeData.chatHistory,
+                {
+                  id: `msg-${Date.now()}-user`,
+                  sender: 'user',
+                  content: message,
+                },
+              ],
             },
           };
         }
@@ -111,6 +124,49 @@ export const useFlow = (isDebugMode: boolean = true) => {
         edges: layouted.edges,
       };
     });
+
+    try {
+      // Use the AIService from the ref to get the response
+      const assistantMessage = await aiServiceRef.current.getResponse(
+        message
+      );
+
+      setFlowData((prevFlowData) => {
+        const { nodes, edges } = prevFlowData;
+        const updatedNodes = nodes.map((node) => {
+          if (node.id === nodeId) {
+            const nodeData = node.data as MessageNodeData;
+            return {
+              ...node,
+              data: {
+                ...nodeData,
+                chatHistory: [
+                  ...nodeData.chatHistory,
+                  assistantMessage,
+                ],
+              },
+            };
+          }
+          return node;
+        });
+
+        const layouted = getLayoutedNodesAndEdges(
+          updatedNodes,
+          edges
+        );
+        const nodesWithIsLeaf = updateIsLeaf(
+          layouted.nodes,
+          layouted.edges
+        );
+
+        return {
+          nodes: nodesWithIsLeaf,
+          edges: layouted.edges,
+        };
+      });
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error);
+    }
   };
 
   const handleBranch = (nodeId: string, messageId: string) => {

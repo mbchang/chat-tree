@@ -6,9 +6,9 @@ export type ChatMessage = {
 
 export type MessageNodeData = {
   chatHistory: ChatMessage[];
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string) => Promise<void>;
   onBranch: (messageId: string) => void;
   onDelete: (nodeId: string) => void;
   isLeaf: boolean;
-  isRoot?: boolean; // Add isRoot property
+  isRoot?: boolean;
 };
