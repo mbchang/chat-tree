@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Node, Edge, Position } from 'reactflow';
 import { MessageNodeData, ChatMessage } from '@/types/chat';
 import {
@@ -32,6 +32,9 @@ export const useFlow = (isDebugMode: boolean = true) => {
   useEffect(() => {
     aiServiceRef.current = getAIService(isDebugMode);
   }, [isDebugMode]);
+
+  // Ref to track the node currently awaiting an assistant response
+  const awaitingResponseRef = useRef<string | null>(null);
 
   const handleDelete = (nodeId: string) => {
     setFlowData((prevFlowData) => {
@@ -84,64 +87,16 @@ export const useFlow = (isDebugMode: boolean = true) => {
     });
   };
 
-  const handleSendMessage = async (
-    nodeId: string,
-    message: string
-  ) => {
-    const timestamp = Date.now();
-
-    // Initialize a variable to store the updated chat history
-    let updatedChatHistory: ChatMessage[] = [];
-
-    // Update the state with the new user message
-    setFlowData((prevFlowData) => {
-      const { nodes, edges } = prevFlowData;
-      const updatedNodes = nodes.map((node) => {
-        if (node.id === nodeId) {
-          const nodeData = node.data as MessageNodeData;
-          updatedChatHistory = [
-            ...nodeData.chatHistory,
-            {
-              id: `msg-${timestamp}-user`,
-              sender: 'user',
-              content: message,
-            },
-          ];
-          return {
-            ...node,
-            data: {
-              ...nodeData,
-              chatHistory: updatedChatHistory,
-            },
-          };
-        }
-        return node;
-      });
-
-      const layouted = getLayoutedNodesAndEdges(updatedNodes, edges);
-      const nodesWithIsLeaf = updateIsLeaf(
-        layouted.nodes,
-        layouted.edges
-      );
-
-      return {
-        nodes: nodesWithIsLeaf,
-        edges: layouted.edges,
+  const handleSendMessage = useCallback(
+    (nodeId: string, message: string) => {
+      const timestamp = Date.now();
+      const userMessage = {
+        id: `msg-${timestamp}-user`,
+        sender: 'user',
+        content: message,
       };
-    });
 
-    console.log(
-      'Current Chat History after user message:',
-      updatedChatHistory
-    );
-
-    try {
-      // Use the AIService from the ref to get the response based on updatedChatHistory
-      const assistantMessage = await aiServiceRef.current.getResponse(
-        updatedChatHistory
-      );
-
-      // Update the state with the assistant's response
+      // Add user message to the node's chat history
       setFlowData((prevFlowData) => {
         const { nodes, edges } = prevFlowData;
         const updatedNodes = nodes.map((node) => {
@@ -151,10 +106,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
               ...node,
               data: {
                 ...nodeData,
-                chatHistory: [
-                  ...nodeData.chatHistory,
-                  assistantMessage,
-                ],
+                chatHistory: [...nodeData.chatHistory, userMessage],
               },
             };
           }
@@ -176,11 +128,75 @@ export const useFlow = (isDebugMode: boolean = true) => {
         };
       });
 
-      console.log('Assistant responded with:', assistantMessage);
-    } catch (error) {
-      console.error('Error in handleSendMessage:', error);
-    }
-  };
+      // Set the nodeId in ref to indicate it's awaiting a response
+      awaitingResponseRef.current = nodeId;
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!awaitingResponseRef.current) return;
+
+    const nodeId = awaitingResponseRef.current;
+
+    // Retrieve the full chat history for the node
+    const fullChatHistory = getFullChatHistory(
+      nodeId,
+      flowData.nodes,
+      flowData.edges
+    );
+    console.log('Full Chat History for AI:', fullChatHistory);
+
+    // Invoke AI service
+    aiServiceRef.current
+      .getResponse(fullChatHistory)
+      .then((assistantMessage) => {
+        console.log('Assistant responded with:', assistantMessage);
+
+        // Update the node's chat history with the assistant's response
+        setFlowData((prevFlowData) => {
+          const { nodes, edges } = prevFlowData;
+          const updatedNodes = nodes.map((node) => {
+            if (node.id === nodeId) {
+              const nodeData = node.data as MessageNodeData;
+              return {
+                ...node,
+                data: {
+                  ...nodeData,
+                  chatHistory: [
+                    ...nodeData.chatHistory,
+                    assistantMessage,
+                  ],
+                },
+              };
+            }
+            return node;
+          });
+
+          const layouted = getLayoutedNodesAndEdges(
+            updatedNodes,
+            edges
+          );
+          const nodesWithIsLeaf = updateIsLeaf(
+            layouted.nodes,
+            layouted.edges
+          );
+
+          return {
+            nodes: nodesWithIsLeaf,
+            edges: layouted.edges,
+          };
+        });
+
+        // Reset the awaiting response ref
+        awaitingResponseRef.current = null;
+      })
+      .catch((error) => {
+        console.error('Error fetching assistant response:', error);
+        // Optionally, handle errors by notifying the user or retrying
+        awaitingResponseRef.current = null;
+      });
+  }, [flowData.nodes, flowData.edges]);
 
   const handleBranch = (nodeId: string, messageId: string) => {
     setFlowData((prevFlowData) => {
@@ -383,4 +399,34 @@ export const useFlow = (isDebugMode: boolean = true) => {
     handleSendMessage,
     handleBranch,
   };
+};
+
+const getFullChatHistory = (
+  nodeId: string,
+  nodes: Node[],
+  edges: Edge[]
+): ChatMessage[] => {
+  const history: ChatMessage[] = [];
+  let currentNodeId = nodeId;
+
+  while (currentNodeId) {
+    const currentNode = nodes.find(
+      (node) => node.id === currentNodeId
+    );
+    if (!currentNode) break;
+
+    const nodeData = currentNode.data as MessageNodeData;
+    history.unshift(...nodeData.chatHistory); // Prepend to maintain chronological order
+
+    const parentEdge = edges.find(
+      (edge) => edge.target === currentNodeId
+    );
+    if (parentEdge) {
+      currentNodeId = parentEdge.source;
+    } else {
+      break; // Reached the root node
+    }
+  }
+
+  return history;
 };
