@@ -1,5 +1,3 @@
-// src/hooks/useFlow.ts
-
 import { useState, useEffect, useRef } from 'react';
 import { Node, Edge, Position } from 'reactflow';
 import { MessageNodeData, ChatMessage } from '@/types/chat';
@@ -20,7 +18,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
     edges: [],
   });
 
-  // Create a ref to hold the current isDebugMode value
+  // Ref to hold the current isDebugMode value
   const isDebugModeRef = useRef(isDebugMode);
 
   // Update the ref whenever isDebugMode changes
@@ -90,23 +88,30 @@ export const useFlow = (isDebugMode: boolean = true) => {
     nodeId: string,
     message: string
   ) => {
+    const timestamp = Date.now();
+
+    // Initialize a variable to store the updated chat history
+    let updatedChatHistory: ChatMessage[] = [];
+
+    // Update the state with the new user message
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
       const updatedNodes = nodes.map((node) => {
         if (node.id === nodeId) {
           const nodeData = node.data as MessageNodeData;
+          updatedChatHistory = [
+            ...nodeData.chatHistory,
+            {
+              id: `msg-${timestamp}-user`,
+              sender: 'user',
+              content: message,
+            },
+          ];
           return {
             ...node,
             data: {
               ...nodeData,
-              chatHistory: [
-                ...nodeData.chatHistory,
-                {
-                  id: `msg-${Date.now()}-user`,
-                  sender: 'user',
-                  content: message,
-                },
-              ],
+              chatHistory: updatedChatHistory,
             },
           };
         }
@@ -125,12 +130,18 @@ export const useFlow = (isDebugMode: boolean = true) => {
       };
     });
 
+    console.log(
+      'Current Chat History after user message:',
+      updatedChatHistory
+    );
+
     try {
-      // Use the AIService from the ref to get the response
+      // Use the AIService from the ref to get the response based on updatedChatHistory
       const assistantMessage = await aiServiceRef.current.getResponse(
-        message
+        updatedChatHistory
       );
 
+      // Update the state with the assistant's response
       setFlowData((prevFlowData) => {
         const { nodes, edges } = prevFlowData;
         const updatedNodes = nodes.map((node) => {
@@ -164,6 +175,8 @@ export const useFlow = (isDebugMode: boolean = true) => {
           edges: layouted.edges,
         };
       });
+
+      console.log('Assistant responded with:', assistantMessage);
     } catch (error) {
       console.error('Error in handleSendMessage:', error);
     }
@@ -281,7 +294,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
       const branchOutEdges = updatedEdges.filter(
         (e) => e.source === branchNodeId
       );
-      const numExistingBranches = branchOutEdges.length;
 
       const newBranchNode: Node = {
         id: newBranchNodeId,
@@ -297,7 +309,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
           isRoot: false, // New branch should never be root
         },
         position: {
-          x: branchNode.position.x + 300 * numExistingBranches,
+          x: branchNode.position.x + 300 * branchOutEdges.length,
           y: branchNode.position.y + 200,
         },
         sourcePosition: Position.Bottom,

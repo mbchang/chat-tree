@@ -1,5 +1,3 @@
-// src/services/ai.ts
-
 import { ChatMessage } from '@/types/chat';
 
 export const getDebugResponse = (message: string): ChatMessage => {
@@ -11,15 +9,19 @@ export const getDebugResponse = (message: string): ChatMessage => {
 };
 
 export const getRealResponse = async (
-  message: string
+  chatHistory: ChatMessage[]
 ): Promise<ChatMessage> => {
+  console.log(
+    'AI Service - Sending chat history to API:',
+    chatHistory
+  ); // Logging
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ chatHistory }), // Send chat history
     });
 
     if (!response.ok) {
@@ -28,13 +30,15 @@ export const getRealResponse = async (
 
     const data = await response.json();
 
+    console.log('AI Service - Received response from API:', data); // Logging
+
     return {
       id: `msg-${Date.now()}-assistant`,
       sender: 'assistant',
       content: data.content,
     };
   } catch (error) {
-    console.error('Chat API error:', error);
+    console.error('Chat API error:', error); // Logging
     return {
       id: `msg-${Date.now()}-assistant`,
       sender: 'assistant',
@@ -44,22 +48,38 @@ export const getRealResponse = async (
 };
 
 export interface AIService {
-  getResponse: (message: string) => Promise<ChatMessage>;
+  getResponse: (chatHistory: ChatMessage[]) => Promise<ChatMessage>;
 }
 
-export class DebugAIService implements AIService {
-  async getResponse(message: string): Promise<ChatMessage> {
-    return {
-      id: `msg-${Date.now()}-assistant`,
-      sender: 'assistant',
-      content: `Assistant response to: ${message}`,
-    };
+class RealAIService implements AIService {
+  async getResponse(
+    chatHistory: ChatMessage[]
+  ): Promise<ChatMessage> {
+    return await getRealResponse(chatHistory);
   }
 }
 
-export class RealAIService implements AIService {
-  async getResponse(message: string): Promise<ChatMessage> {
-    return await getRealResponse(message);
+class DebugAIService implements AIService {
+  async getResponse(
+    chatHistory: ChatMessage[]
+  ): Promise<ChatMessage> {
+    // Optional: Use chatHistory for more sophisticated debug responses
+    console.log('Debug Mode - Chat History:', chatHistory);
+
+    const lastUserMessage = chatHistory
+      .slice()
+      .reverse()
+      .find((msg) => msg.sender === 'user');
+
+    const responseContent = lastUserMessage
+      ? `Debug response to: ${lastUserMessage.content}`
+      : 'Debug response.';
+
+    return {
+      id: `msg-${Date.now()}-assistant`,
+      sender: 'assistant',
+      content: responseContent,
+    };
   }
 }
 
