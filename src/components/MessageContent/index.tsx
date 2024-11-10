@@ -87,15 +87,17 @@ const MessageContent: React.FC<MessageContentProps> = ({
                   if (!inline && match) {
                     return (
                       <pre
-                        className={`${className} overflow-x-auto p-2 bg-gray-800 rounded`}
+                        className={`${className} overflow-x-auto p-2 bg-gray-800 rounded text-sm`}
                       >
-                        <code {...props}>{children}</code>
+                        <code {...props} className="text-sm">
+                          {children}
+                        </code>
                       </pre>
                     );
                   } else {
                     return (
                       <code
-                        className={`${className} bg-gray-200 rounded px-1`}
+                        className={`${className} bg-gray-200 rounded px-1 text-sm`}
                         {...props}
                       >
                         {children}
