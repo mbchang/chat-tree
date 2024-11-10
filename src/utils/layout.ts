@@ -60,16 +60,17 @@ export const getLayoutedNodesAndEdges = (
   // Update node positions with the layout results
   const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
+    const nodeHeight = nodeWithPosition.height;
 
     return {
       ...node,
       position: {
         x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeWithPosition.height / 2,
+        y: nodeWithPosition.y - nodeHeight,
       },
       style: {
         width: nodeWidth,
-        height: nodeWithPosition.height,
+        height: nodeHeight,
       },
     };
   });
