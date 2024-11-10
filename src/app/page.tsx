@@ -18,7 +18,9 @@ import { ApiKeyContext } from '@/context/ApiKeyContext';
 
 const Page = () => {
   const { apiKey, setApiKey } = useContext(ApiKeyContext);
-  const [isDebugMode, setIsDebugMode] = useState(true);
+  const [isDebugMode, setIsDebugMode] = useState(
+    process.env.NODE_ENV === 'development'
+  );
   const { flowData } = useFlow(isDebugMode);
 
   // Debugging: Log apiKey changes
@@ -46,14 +48,16 @@ const Page = () => {
 
   return (
     <div className="h-screen relative">
-      <div className="absolute top-4 right-4 z-10">
-        <button
-          onClick={() => setIsDebugMode((prev) => !prev)}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors shadow-md"
-        >
-          {isDebugMode ? '🐛 Debug Mode' : '🚀 Production Mode'}
-        </button>
-      </div>
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={() => setIsDebugMode((prev) => !prev)}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors shadow-md"
+          >
+            {isDebugMode ? '🐛 Debug Mode' : '🚀 Production Mode'}
+          </button>
+        </div>
+      )}
 
       <div className="absolute top-4 left-4 z-10">
         <input
