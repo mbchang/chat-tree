@@ -3,7 +3,9 @@ import ReactMarkdown from 'react-markdown';
 import { InlineMath, BlockMath } from 'react-katex';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
 import 'katex/dist/katex.min.css';
+import 'highlight.js/styles/github.css';
 
 interface MessageContentProps {
   content: string;
@@ -69,7 +71,29 @@ const MessageContent: React.FC<MessageContentProps> = ({
             <ReactMarkdown
               key={index}
               remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
+              rehypePlugins={[rehypeKatex, rehypeHighlight]}
+              components={{
+                code({
+                  node,
+                  inline,
+                  className,
+                  children,
+                  ...props
+                }) {
+                  const match = /language-(\w+)/.exec(
+                    className || ''
+                  );
+                  return !inline && match ? (
+                    <pre className={className}>
+                      <code {...props}>{children}</code>
+                    </pre>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
             >
               {segment.content}
             </ReactMarkdown>
