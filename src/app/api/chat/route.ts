@@ -115,7 +115,10 @@ export async function POST(request: NextRequest) {
       );
     } else if (error instanceof OpenAIAPIError) {
       return NextResponse.json(
-        { error: error.message },
+        {
+          error:
+            'There was an issue processing your request. Please try again later.',
+        },
         { status: 500 }
       );
     } else {
