@@ -1,5 +1,4 @@
 import { ChatMessage } from '@/types/chat';
-import { AIService } from '@/types/chat';
 
 export interface AIServiceInterface {
   getResponse: (
@@ -20,7 +19,7 @@ class RealAIService implements AIServiceInterface {
 class DebugAIService implements AIServiceInterface {
   async getResponse(
     chatHistory: ChatMessage[],
-    apiKey?: string
+    _apiKey?: string
   ): Promise<ChatMessage> {
     console.log('Debug Mode - Chat History:', chatHistory);
     const lastUserMessage = [...chatHistory]
