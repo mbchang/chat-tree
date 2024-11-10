@@ -29,6 +29,13 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
     const { getNodes, setCenter, getZoom } = useReactFlow();
     const messageContainerRef = useRef<HTMLDivElement>(null);
 
+    useEffect(() => {
+      const container = messageContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }, [chatHistory]);
+
     const handleNodeClick = useCallback(
       (event: React.MouseEvent) => {
         if (
