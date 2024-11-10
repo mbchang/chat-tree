@@ -1,20 +1,26 @@
 import { ChatMessage } from '@/types/chat';
+import { AIService } from '@/types/chat';
 
-export interface AIService {
-  getResponse: (chatHistory: ChatMessage[]) => Promise<ChatMessage>;
+export interface AIServiceInterface {
+  getResponse: (
+    chatHistory: ChatMessage[],
+    apiKey: string
+  ) => Promise<ChatMessage>;
 }
 
-class RealAIService implements AIService {
+class RealAIService implements AIServiceInterface {
   async getResponse(
-    chatHistory: ChatMessage[]
+    chatHistory: ChatMessage[],
+    apiKey: string
   ): Promise<ChatMessage> {
-    return await fetchRealResponse(chatHistory);
+    return await fetchRealResponse(chatHistory, apiKey);
   }
 }
 
-class DebugAIService implements AIService {
+class DebugAIService implements AIServiceInterface {
   async getResponse(
-    chatHistory: ChatMessage[]
+    chatHistory: ChatMessage[],
+    apiKey?: string
   ): Promise<ChatMessage> {
     console.log('Debug Mode - Chat History:', chatHistory);
     const lastUserMessage = [...chatHistory]
@@ -32,17 +38,15 @@ class DebugAIService implements AIService {
 }
 
 const fetchRealResponse = async (
-  chatHistory: ChatMessage[]
+  chatHistory: ChatMessage[],
+  apiKey: string
 ): Promise<ChatMessage> => {
-  console.log(
-    'AI Service - Sending chat history to API:',
-    chatHistory
-  );
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-api-key': apiKey, // Pass API key in headers
       },
       body: JSON.stringify({ chatHistory }),
     });
@@ -52,7 +56,6 @@ const fetchRealResponse = async (
     }
 
     const data = await response.json();
-    console.log('AI Service - Received response from API:', data);
 
     return {
       id: `msg-${Date.now()}-assistant`,
@@ -64,11 +67,13 @@ const fetchRealResponse = async (
     return {
       id: `msg-${Date.now()}-assistant`,
       sender: 'assistant',
-      content: 'Sorry, there was an error generating the response.',
+      content: 'There was an error processing your request.',
     };
   }
 };
 
-export const getAIService = (isDebugMode: boolean): AIService => {
+export const getAIService = (
+  isDebugMode: boolean
+): AIServiceInterface => {
   return isDebugMode ? new DebugAIService() : new RealAIService();
 };

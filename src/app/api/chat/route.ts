@@ -30,9 +30,16 @@ class OpenAIAPIError extends Error {
 
 export async function POST(request: NextRequest) {
   try {
+    const apiKey = request.headers.get('x-api-key');
+    if (!apiKey) {
+      throw new Error('API key is missing.');
+    }
+
     const body: ChatRequestBody = await request.json();
 
     console.log('API Received chat history:', body.chatHistory);
+
+    console.log('API key:', apiKey);
 
     const { chatHistory } = body;
 
@@ -50,10 +57,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not set.');
-    }
-
     // Construct messages array for OpenAI API, including chat history
     const messages = [
       { role: 'system', content: 'You are a helpful assistant.' },
@@ -65,14 +68,14 @@ export async function POST(request: NextRequest) {
 
     console.log('Messages sent to OpenAI:', messages);
 
-    // Call OpenAI API
+    // Call OpenAI API with the provided apiKey
     const openAIResponse = await fetch(
       'https://api.openai.com/v1/chat/completions',
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini', // Update model as needed

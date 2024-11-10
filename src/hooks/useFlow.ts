@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useContext,
+} from 'react';
 import { Node, Edge, Position } from 'reactflow';
 import { MessageNodeData, ChatMessage } from '@/types/chat';
 import {
@@ -7,9 +13,13 @@ import {
   getDescendants,
   mergeNodes,
 } from '@/utils/layout';
-import { getAIService, AIService } from '@/services/ai';
+import { getAIService, AIServiceInterface } from '@/services/ai';
+import { ApiKeyContext } from '@/context/ApiKeyContext';
 
 export const useFlow = (isDebugMode: boolean = true) => {
+  const { apiKey } = useContext(ApiKeyContext);
+  console.log('useFlow - Current API Key:', apiKey);
+
   const [flowData, setFlowData] = useState<{
     nodes: Node[];
     edges: Edge[];
@@ -24,17 +34,36 @@ export const useFlow = (isDebugMode: boolean = true) => {
   // Update the ref whenever isDebugMode changes
   useEffect(() => {
     isDebugModeRef.current = isDebugMode;
+    console.log(
+      'useFlow - isDebugModeRef updated to:',
+      isDebugModeRef.current
+    );
   }, [isDebugMode]);
 
   // Initialize AIService based on the current mode
-  const aiServiceRef = useRef<AIService>(getAIService(isDebugMode));
+  const aiServiceRef = useRef<AIServiceInterface>(
+    getAIService(isDebugMode)
+  );
 
   useEffect(() => {
     aiServiceRef.current = getAIService(isDebugMode);
+    console.log(
+      'useFlow - AIService updated based on isDebugMode:',
+      isDebugMode
+    );
   }, [isDebugMode]);
 
   // Ref to track the node currently awaiting an assistant response
   const awaitingResponseRef = useRef<string | null>(null);
+
+  // Ref to always have the latest apiKey
+  const apiKeyRef = useRef<string>(apiKey);
+
+  // Update apiKeyRef whenever apiKey changes
+  useEffect(() => {
+    apiKeyRef.current = apiKey;
+    console.log('useFlow - apiKeyRef updated to:', apiKeyRef.current);
+  }, [apiKey]);
 
   const handleDelete = (nodeId: string) => {
     setFlowData((prevFlowData) => {
@@ -89,8 +118,26 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
   const handleSendMessage = useCallback(
     (nodeId: string, message: string) => {
+      console.log('handleSendMessage called with:', {
+        nodeId,
+        message,
+      });
+      console.log('API Key at send time:', apiKeyRef.current);
+      console.log(
+        'isDebugModeRef.current at send time:',
+        isDebugModeRef.current
+      );
+
+      if (
+        (!apiKeyRef.current || apiKeyRef.current.trim() === '') &&
+        !isDebugModeRef.current
+      ) {
+        alert('Please enter your OpenAI API Key.');
+        return;
+      }
+
       const timestamp = Date.now();
-      const userMessage = {
+      const userMessage: ChatMessage = {
         id: `msg-${timestamp}-user`,
         sender: 'user',
         content: message,
@@ -134,69 +181,77 @@ export const useFlow = (isDebugMode: boolean = true) => {
     []
   );
 
-  useEffect(() => {
-    if (!awaitingResponseRef.current) return;
+  useEffect(
+    () => {
+      if (!awaitingResponseRef.current) return;
 
-    const nodeId = awaitingResponseRef.current;
+      const nodeId = awaitingResponseRef.current;
 
-    // Retrieve the full chat history for the node
-    const fullChatHistory = getFullChatHistory(
-      nodeId,
-      flowData.nodes,
-      flowData.edges
-    );
-    console.log('Full Chat History for AI:', fullChatHistory);
+      // Retrieve the full chat history for the node
+      const fullChatHistory = getFullChatHistory(
+        nodeId,
+        flowData.nodes,
+        flowData.edges
+      );
+      console.log('Full Chat History for AI:', fullChatHistory);
 
-    // Invoke AI service
-    aiServiceRef.current
-      .getResponse(fullChatHistory)
-      .then((assistantMessage) => {
-        console.log('Assistant responded with:', assistantMessage);
+      // Invoke AI service
 
-        // Update the node's chat history with the assistant's response
-        setFlowData((prevFlowData) => {
-          const { nodes, edges } = prevFlowData;
-          const updatedNodes = nodes.map((node) => {
-            if (node.id === nodeId) {
-              const nodeData = node.data as MessageNodeData;
-              return {
-                ...node,
-                data: {
-                  ...nodeData,
-                  chatHistory: [
-                    ...nodeData.chatHistory,
-                    assistantMessage,
-                  ],
-                },
-              };
-            }
-            return node;
+      // Fetch AI response with apiKey
+      aiServiceRef.current
+        .getResponse(
+          getFullChatHistory(nodeId, flowData.nodes, flowData.edges),
+          apiKeyRef.current
+        )
+        .then((assistantMessage) => {
+          console.log('Assistant responded with:', assistantMessage);
+
+          // Update the node's chat history with the assistant's response
+          setFlowData((prevFlowData) => {
+            const { nodes, edges } = prevFlowData;
+            const updatedNodes = nodes.map((node) => {
+              if (node.id === nodeId) {
+                const nodeData = node.data as MessageNodeData;
+                return {
+                  ...node,
+                  data: {
+                    ...nodeData,
+                    chatHistory: [
+                      ...nodeData.chatHistory,
+                      assistantMessage,
+                    ],
+                  },
+                };
+              }
+              return node;
+            });
+
+            const layouted = getLayoutedNodesAndEdges(
+              updatedNodes,
+              edges
+            );
+            const nodesWithIsLeaf = updateIsLeaf(
+              layouted.nodes,
+              layouted.edges
+            );
+
+            return {
+              nodes: nodesWithIsLeaf,
+              edges: layouted.edges,
+            };
           });
 
-          const layouted = getLayoutedNodesAndEdges(
-            updatedNodes,
-            edges
-          );
-          const nodesWithIsLeaf = updateIsLeaf(
-            layouted.nodes,
-            layouted.edges
-          );
-
-          return {
-            nodes: nodesWithIsLeaf,
-            edges: layouted.edges,
-          };
+          // Reset the awaiting response ref
+          awaitingResponseRef.current = null;
+        })
+        .catch((error) => {
+          console.error('Error fetching assistant response:', error);
+          // Optionally, handle errors by notifying the user or retrying
+          awaitingResponseRef.current = null;
         });
-
-        // Reset the awaiting response ref
-        awaitingResponseRef.current = null;
-      })
-      .catch((error) => {
-        console.error('Error fetching assistant response:', error);
-        // Optionally, handle errors by notifying the user or retrying
-        awaitingResponseRef.current = null;
-      });
-  }, [flowData.nodes, flowData.edges]);
+    },
+    [flowData.nodes, flowData.edges] // Removed apiKey from dependencies
+  );
 
   const handleBranch = (nodeId: string, messageId: string) => {
     setFlowData((prevFlowData) => {
@@ -391,7 +446,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
       nodes: nodesWithIsLeaf,
       edges: [],
     });
-  }, []);
+  }, []); // No dependencies here to run only once
 
   return {
     flowData,

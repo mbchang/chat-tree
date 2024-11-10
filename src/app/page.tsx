@@ -1,6 +1,11 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, {
+  useMemo,
+  useState,
+  useContext,
+  useEffect,
+} from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   MiniMap,
@@ -9,10 +14,22 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import MessageNode from '../components/MessageNode';
 import { useFlow } from '@/hooks/useFlow';
+import { ApiKeyContext } from '@/context/ApiKeyContext';
 
 const Page = () => {
+  const { apiKey, setApiKey } = useContext(ApiKeyContext);
   const [isDebugMode, setIsDebugMode] = useState(true);
   const { flowData } = useFlow(isDebugMode);
+
+  // Debugging: Log apiKey changes
+  useEffect(() => {
+    console.log('Page Component - API Key Updated:', apiKey);
+  }, [apiKey]);
+
+  // Debugging: Log isDebugMode changes
+  useEffect(() => {
+    console.log('Page Component - isDebugMode:', isDebugMode);
+  }, [isDebugMode]);
 
   const nodeTypes = useMemo(
     () => ({
@@ -20,6 +37,12 @@ const Page = () => {
     }),
     []
   );
+
+  const handleApiKeyChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setApiKey(e.target.value);
+  };
 
   return (
     <div className="h-screen relative">
@@ -31,6 +54,17 @@ const Page = () => {
           {isDebugMode ? '🐛 Debug Mode' : '🚀 Production Mode'}
         </button>
       </div>
+
+      <div className="absolute top-4 left-4 z-10">
+        <input
+          type="password"
+          value={apiKey}
+          onChange={handleApiKeyChange}
+          placeholder="Enter OpenAI API Key"
+          className="px-4 py-2 border border-gray-300 rounded-md bg-white text-black placeholder:text-gray-500"
+        />
+      </div>
+
       <ReactFlowProvider>
         <ReactFlow
           nodes={flowData.nodes}
