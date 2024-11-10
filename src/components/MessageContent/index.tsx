@@ -54,7 +54,7 @@ const MessageContent: React.FC<MessageContentProps> = ({
   const segments = parseContent(content);
 
   return (
-    <>
+    <div>
       {segments.map((segment, index) => {
         if (segment.type === 'latex') {
           try {
@@ -83,15 +83,25 @@ const MessageContent: React.FC<MessageContentProps> = ({
                   const match = /language-(\w+)/.exec(
                     className || ''
                   );
-                  return !inline && match ? (
-                    <pre className={className}>
-                      <code {...props}>{children}</code>
-                    </pre>
-                  ) : (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
+
+                  if (!inline && match) {
+                    return (
+                      <pre
+                        className={`${className} overflow-x-auto p-2 bg-gray-800 rounded`}
+                      >
+                        <code {...props}>{children}</code>
+                      </pre>
+                    );
+                  } else {
+                    return (
+                      <code
+                        className={`${className} bg-gray-200 rounded px-1`}
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  }
                 },
               }}
             >
@@ -100,7 +110,7 @@ const MessageContent: React.FC<MessageContentProps> = ({
           );
         }
       })}
-    </>
+    </div>
   );
 };
 
