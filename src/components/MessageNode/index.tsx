@@ -51,7 +51,14 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
         const node = getNodes().find((n) => n.id === id);
         if (!node) return;
 
-        const nodeHeight = parseFloat(node.style?.height) || 0;
+        const height = node.style?.height;
+        const nodeHeight =
+          typeof height === 'string'
+            ? parseFloat(height)
+            : typeof height === 'number'
+            ? height
+            : 0;
+
         const currentZoom = getZoom();
         const targetZoom = 1.5;
         const steps = 20;
