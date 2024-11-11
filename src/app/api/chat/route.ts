@@ -39,8 +39,6 @@ export async function POST(request: NextRequest) {
 
     console.log('API Received chat history:', body.chatHistory);
 
-    console.log('API key:', apiKey);
-
     const { chatHistory } = body;
 
     if (
