@@ -63,7 +63,7 @@ const MessageContent: React.FC<MessageContentProps> = ({
             ) : (
               <InlineMath key={index} math={segment.content} />
             );
-          } catch (error) {
+          } catch {
             return <span key={index}>Error rendering LaTeX</span>;
           }
         } else {

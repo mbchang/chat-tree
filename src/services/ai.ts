@@ -19,7 +19,8 @@ class RealAIService implements AIServiceInterface {
 class DebugAIService implements AIServiceInterface {
   async getResponse(
     chatHistory: ChatMessage[],
-    _apiKey?: string
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _apiKey: string
   ): Promise<ChatMessage> {
     console.log('Debug Mode - Chat History:', chatHistory);
     const lastUserMessage = [...chatHistory]
