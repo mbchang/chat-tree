@@ -24,9 +24,7 @@ const Page = () => {
   const { flowData } = useFlow(isDebugMode);
 
   // Debugging: Log apiKey changes
-  useEffect(() => {
-    console.log('Page Component - API Key Updated:', apiKey);
-  }, [apiKey]);
+  useEffect(() => {}, [apiKey]);
 
   // Debugging: Log isDebugMode changes
   useEffect(() => {

@@ -18,7 +18,6 @@ import { ApiKeyContext } from '@/context/ApiKeyContext';
 
 export const useFlow = (isDebugMode: boolean = true) => {
   const { apiKey } = useContext(ApiKeyContext);
-  console.log('useFlow - Current API Key:', apiKey);
 
   const [flowData, setFlowData] = useState<{
     nodes: Node[];
@@ -62,7 +61,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
   // Update apiKeyRef whenever apiKey changes
   useEffect(() => {
     apiKeyRef.current = apiKey;
-    console.log('useFlow - apiKeyRef updated to:', apiKeyRef.current);
   }, [apiKey]);
 
   const handleDelete = (nodeId: string) => {
@@ -122,7 +120,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
         nodeId,
         message,
       });
-      console.log('API Key at send time:', apiKeyRef.current);
       console.log(
         'isDebugModeRef.current at send time:',
         isDebugModeRef.current
