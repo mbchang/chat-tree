@@ -67,6 +67,29 @@ const Page = () => {
         />
       </div>
 
+      <div className="absolute top-20 left-4 right-4 z-10 text-gray-700 text-center space-y-2">
+        <p>
+          Ever wanted to ask multiple independent follow-up questions
+          without polluting the context or scrolling up and down
+          through the chat history?
+        </p>
+        <p>
+          Click the{' '}
+          <span className="inline-flex items-center justify-center w-5 h-5">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-gray-700"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              aria-label="Branch Icon"
+            >
+              <path d="M10 3a1 1 0 100 2h4.586L9.293 10.293a1 1 0 001.414 1.414L16 6.414V11a1 1 0 102 0V4a1 1 0 00-1-1h-7z" />
+            </svg>
+          </span>{' '}
+          icon to fork the conversation from a previous message.
+        </p>
+      </div>
+
       <ReactFlowProvider>
         <ReactFlow
           nodes={flowData.nodes}
