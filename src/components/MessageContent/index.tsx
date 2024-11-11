@@ -11,6 +11,13 @@ interface MessageContentProps {
   content: string;
 }
 
+interface CodeComponentProps
+  extends React.HTMLAttributes<HTMLElement> {
+  inline?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}
+
 const MessageContent: React.FC<MessageContentProps> = ({
   content,
 }) => {
@@ -74,12 +81,11 @@ const MessageContent: React.FC<MessageContentProps> = ({
               rehypePlugins={[rehypeKatex, rehypeHighlight]}
               components={{
                 code({
-                  node,
                   inline,
                   className,
                   children,
                   ...props
-                }) {
+                }: CodeComponentProps) {
                   const match = /language-(\w+)/.exec(
                     className || ''
                   );
