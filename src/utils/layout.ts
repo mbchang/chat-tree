@@ -22,7 +22,6 @@ export const getLayoutedNodesAndEdges = (
     rankdir: direction,
     nodesep: 100, // Horizontal spacing between nodes
     ranksep: 200, // Vertical spacing between ranks
-    rankwidth: 1000, // Width available for each rank
   });
 
   // Calculate node dimensions
