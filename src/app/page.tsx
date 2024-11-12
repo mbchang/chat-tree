@@ -16,10 +16,6 @@ const Page = () => {
   );
   const { flowData } = useFlow(isDebugMode);
 
-  useEffect(() => {
-    console.log('Page Component - isDebugMode:', isDebugMode);
-  }, [isDebugMode]);
-
   const nodeTypes = useMemo(
     () => ({
       messageNode: MessageNode,

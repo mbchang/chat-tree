@@ -24,10 +24,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
   // Update the ref whenever isDebugMode changes
   useEffect(() => {
     isDebugModeRef.current = isDebugMode;
-    console.log(
-      'useFlow - isDebugModeRef updated to:',
-      isDebugModeRef.current
-    );
   }, [isDebugMode]);
 
   // Initialize AIService based on the current mode
@@ -37,10 +33,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
   useEffect(() => {
     aiServiceRef.current = getAIService(isDebugMode);
-    console.log(
-      'useFlow - AIService updated based on isDebugMode:',
-      isDebugMode
-    );
   }, [isDebugMode]);
 
   // Ref to track the node currently awaiting an assistant response
@@ -99,15 +91,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
   const handleSendMessage = useCallback(
     async (nodeId: string, message: string) => {
-      console.log('handleSendMessage called with:', {
-        nodeId,
-        message,
-      });
-      console.log(
-        'isDebugModeRef.current at send time:',
-        isDebugModeRef.current
-      );
-
       const timestamp = Date.now();
       const userMessage: ChatMessage = {
         id: `msg-${timestamp}-user`,
@@ -160,24 +143,12 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
       const nodeId = awaitingResponseRef.current;
 
-      // Retrieve the full chat history for the node
-      const fullChatHistory = getFullChatHistory(
-        nodeId,
-        flowData.nodes,
-        flowData.edges
-      );
-      console.log('Full Chat History for AI:', fullChatHistory);
-
-      // Invoke AI service
-
       // Fetch AI response with apiKey
       aiServiceRef.current
         .getResponse(
           getFullChatHistory(nodeId, flowData.nodes, flowData.edges)
         )
         .then((assistantMessage) => {
-          console.log('Assistant responded with:', assistantMessage);
-
           // Update the node's chat history with the assistant's response and set isLoading to false
           setFlowData((prevFlowData) => {
             const { nodes, edges } = prevFlowData;
