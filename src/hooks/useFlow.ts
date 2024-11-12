@@ -1,10 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useContext,
-} from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Node, Edge, Position } from 'reactflow';
 import { MessageNodeData, ChatMessage } from '@/types/chat';
 import {
@@ -14,11 +8,8 @@ import {
   mergeNodes,
 } from '@/utils/layout';
 import { getAIService, AIServiceInterface } from '@/services/ai';
-import { ApiKeyContext } from '@/context/ApiKeyContext';
 
 export const useFlow = (isDebugMode: boolean = true) => {
-  const { apiKey } = useContext(ApiKeyContext);
-
   const [flowData, setFlowData] = useState<{
     nodes: Node[];
     edges: Edge[];
@@ -54,14 +45,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
   // Ref to track the node currently awaiting an assistant response
   const awaitingResponseRef = useRef<string | null>(null);
-
-  // Ref to always have the latest apiKey
-  const apiKeyRef = useRef<string>(apiKey);
-
-  // Update apiKeyRef whenever apiKey changes
-  useEffect(() => {
-    apiKeyRef.current = apiKey;
-  }, [apiKey]);
 
   const handleDelete = (nodeId: string) => {
     setFlowData((prevFlowData) => {
@@ -189,8 +172,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
       // Fetch AI response with apiKey
       aiServiceRef.current
         .getResponse(
-          getFullChatHistory(nodeId, flowData.nodes, flowData.edges),
-          apiKeyRef.current
+          getFullChatHistory(nodeId, flowData.nodes, flowData.edges)
         )
         .then((assistantMessage) => {
           console.log('Assistant responded with:', assistantMessage);
