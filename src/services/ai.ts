@@ -59,7 +59,8 @@ const fetchRealResponse = async (
     return {
       id: `msg-${Date.now()}-assistant`,
       sender: 'assistant',
-      content: 'There was an error processing your request.',
+      content:
+        'There was an error processing your request, likely a timeout.',
     };
   }
 };
