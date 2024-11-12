@@ -16,7 +16,6 @@ class DebugAIService implements AIServiceInterface {
   async getResponse(
     chatHistory: ChatMessage[]
   ): Promise<ChatMessage> {
-    console.log('Debug Mode - Chat History:', chatHistory);
     const lastUserMessage = [...chatHistory]
       .reverse()
       .find((msg) => msg.sender === 'user');

@@ -37,8 +37,6 @@ export async function POST(request: NextRequest) {
 
     const body: ChatRequestBody = await request.json();
 
-    console.log('API Received chat history:', body.chatHistory);
-
     const { chatHistory } = body;
 
     if (
@@ -63,8 +61,6 @@ export async function POST(request: NextRequest) {
         content: msg.content,
       })),
     ];
-
-    console.log('Messages sent to OpenAI:', messages);
 
     // Call OpenAI API with the provided apiKey
     const openAIResponse = await fetch(
@@ -93,8 +89,6 @@ export async function POST(request: NextRequest) {
     const data = await openAIResponse.json();
 
     const aiMessage = data.choices?.[0]?.message?.content?.trim();
-
-    console.log('AI response:', aiMessage);
 
     if (!aiMessage) {
       throw new OpenAIAPIError('No response from AI service.');

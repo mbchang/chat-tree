@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   MiniMap,
@@ -15,10 +15,6 @@ const Page = () => {
     process.env.NODE_ENV === 'development'
   );
   const { flowData } = useFlow(isDebugMode);
-
-  useEffect(() => {
-    console.log('Page Component - isDebugMode:', isDebugMode);
-  }, [isDebugMode]);
 
   const nodeTypes = useMemo(
     () => ({
