@@ -1,26 +1,20 @@
 import { ChatMessage } from '@/types/chat';
 
 export interface AIServiceInterface {
-  getResponse: (
-    chatHistory: ChatMessage[],
-    apiKey: string
-  ) => Promise<ChatMessage>;
+  getResponse: (chatHistory: ChatMessage[]) => Promise<ChatMessage>;
 }
 
 class RealAIService implements AIServiceInterface {
   async getResponse(
-    chatHistory: ChatMessage[],
-    apiKey: string
+    chatHistory: ChatMessage[]
   ): Promise<ChatMessage> {
-    return await fetchRealResponse(chatHistory, apiKey);
+    return await fetchRealResponse(chatHistory);
   }
 }
 
 class DebugAIService implements AIServiceInterface {
   async getResponse(
-    chatHistory: ChatMessage[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _apiKey: string
+    chatHistory: ChatMessage[]
   ): Promise<ChatMessage> {
     console.log('Debug Mode - Chat History:', chatHistory);
     const lastUserMessage = [...chatHistory]
@@ -38,15 +32,13 @@ class DebugAIService implements AIServiceInterface {
 }
 
 const fetchRealResponse = async (
-  chatHistory: ChatMessage[],
-  apiKey: string
+  chatHistory: ChatMessage[]
 ): Promise<ChatMessage> => {
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey, // Pass API key in headers
       },
       body: JSON.stringify({ chatHistory }),
     });

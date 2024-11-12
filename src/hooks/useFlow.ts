@@ -125,14 +125,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
         isDebugModeRef.current
       );
 
-      if (
-        (!apiKeyRef.current || apiKeyRef.current.trim() === '') &&
-        !isDebugModeRef.current
-      ) {
-        alert('Please enter your OpenAI API Key.');
-        return;
-      }
-
       const timestamp = Date.now();
       const userMessage: ChatMessage = {
         id: `msg-${timestamp}-user`,
