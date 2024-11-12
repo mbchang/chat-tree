@@ -4,6 +4,10 @@ The problem with current chat interfaces is that they restrict the conversation 
 
 [chat-tree](https://chat-tree-inky.vercel.app) is a tool that allows you to ask multiple independent follow-up questions without polluting the context or scrolling up and down through the chat history.
 
+<p align="center">
+  <img src="./assets/example1.png" width="800" alt="example1">
+</p>
+
 
 ## Getting Started
 
