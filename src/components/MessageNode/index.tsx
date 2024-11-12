@@ -8,6 +8,7 @@ import { Handle, Position, useReactFlow } from 'reactflow';
 import MessageContent from '../MessageContent';
 import { maxNodeHeight } from '@/constants/layout';
 import { MessageNodeData } from '@/types/chat';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 interface MessageNodeProps {
   data: MessageNodeData;
@@ -23,6 +24,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
       onDelete,
       isLeaf,
       isRoot,
+      isLoading,
     } = data;
     const [inputValue, setInputValue] = useState('');
     const [isHoveringDelete, setIsHoveringDelete] = useState(false);
@@ -216,6 +218,13 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
                 )}
             </div>
           ))}
+
+          {isLoading && (
+            <div className="flex justify-start items-center space-x-2">
+              <LoadingSpinner />
+              <span className="text-gray-500">Loading...</span>
+            </div>
+          )}
         </div>
 
         {isLeaf && (

@@ -11,7 +11,7 @@ import { getAIService, AIServiceInterface } from '@/services/ai';
 
 export const useFlow = (isDebugMode: boolean = true) => {
   const [flowData, setFlowData] = useState<{
-    nodes: Node[];
+    nodes: Node<MessageNodeData>[];
     edges: Edge[];
   }>({
     nodes: [],
@@ -98,7 +98,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
   };
 
   const handleSendMessage = useCallback(
-    (nodeId: string, message: string) => {
+    async (nodeId: string, message: string) => {
       console.log('handleSendMessage called with:', {
         nodeId,
         message,
@@ -115,7 +115,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
         content: message,
       };
 
-      // Add user message to the node's chat history
+      // Add user message to the node's chat history and set isLoading to true
       setFlowData((prevFlowData) => {
         const { nodes, edges } = prevFlowData;
         const updatedNodes = nodes.map((node) => {
@@ -126,6 +126,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
               data: {
                 ...nodeData,
                 chatHistory: [...nodeData.chatHistory, userMessage],
+                isLoading: true, // Set loading state
               },
             };
           }
@@ -177,7 +178,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
         .then((assistantMessage) => {
           console.log('Assistant responded with:', assistantMessage);
 
-          // Update the node's chat history with the assistant's response
+          // Update the node's chat history with the assistant's response and set isLoading to false
           setFlowData((prevFlowData) => {
             const { nodes, edges } = prevFlowData;
             const updatedNodes = nodes.map((node) => {
@@ -191,6 +192,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
                       ...nodeData.chatHistory,
                       assistantMessage,
                     ],
+                    isLoading: false, // Reset loading state
                   },
                 };
               }
@@ -218,6 +220,30 @@ export const useFlow = (isDebugMode: boolean = true) => {
         .catch((error) => {
           console.error('Error fetching assistant response:', error);
           // Optionally, handle errors by notifying the user or retrying
+
+          // Reset loading state even on error
+          setFlowData((prevFlowData) => {
+            const { nodes, edges } = prevFlowData;
+            const updatedNodes = nodes.map((node) => {
+              if (node.id === nodeId) {
+                const nodeData = node.data as MessageNodeData;
+                return {
+                  ...node,
+                  data: {
+                    ...nodeData,
+                    isLoading: false, // Reset loading state
+                  },
+                };
+              }
+              return node;
+            });
+
+            return {
+              nodes: updatedNodes,
+              edges: edges,
+            };
+          });
+
           awaitingResponseRef.current = null;
         });
     },
@@ -254,7 +280,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
         messageIndex + 1
       );
 
-      const branchNode: Node = {
+      const branchNode: Node<MessageNodeData> = {
         id: branchNodeId,
         type: 'messageNode',
         data: {
@@ -266,6 +292,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
           onDelete: handleDelete,
           isLeaf: true,
           isRoot: originalData.isRoot, // Preserve isRoot status
+          isLoading: false, // Initialize loading state
         },
         position: originalNode.position,
         sourcePosition: Position.Bottom,
@@ -285,7 +312,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
       const newEdges: Edge[] = [];
 
       if (chatHistoryAfterBranch.length > 0) {
-        const continuationNode: Node = {
+        const continuationNode: Node<MessageNodeData> = {
           id: continuationNodeId,
           type: 'messageNode',
           data: {
@@ -297,6 +324,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
             onDelete: handleDelete,
             isLeaf: true,
             isRoot: false, // New continuation should never be root
+            isLoading: false, // Initialize loading state
           },
           position: {
             x: branchNode.position.x,
@@ -337,7 +365,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
         (e) => e.source === branchNodeId
       );
 
-      const newBranchNode: Node = {
+      const newBranchNode: Node<MessageNodeData> = {
         id: newBranchNodeId,
         type: 'messageNode',
         data: {
@@ -349,6 +377,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
           onDelete: handleDelete,
           isLeaf: true,
           isRoot: false, // New branch should never be root
+          isLoading: false, // Initialize loading state
         },
         position: {
           x: branchNode.position.x + 300 * branchOutEdges.length,
@@ -387,7 +416,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
   };
 
   useEffect(() => {
-    const initialNode: Node = {
+    const initialNode: Node<MessageNodeData> = {
       id: '1',
       type: 'messageNode',
       data: {
@@ -404,6 +433,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
         onDelete: handleDelete,
         isLeaf: true,
         isRoot: true,
+        isLoading: false, // Initialize loading state
       },
       position: { x: 0, y: 0 },
       sourcePosition: Position.Bottom,
@@ -429,7 +459,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
 const getFullChatHistory = (
   nodeId: string,
-  nodes: Node[],
+  nodes: Node<MessageNodeData>[],
   edges: Edge[]
 ): ChatMessage[] => {
   const history: ChatMessage[] = [];

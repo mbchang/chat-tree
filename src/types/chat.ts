@@ -11,4 +11,5 @@ export type MessageNodeData = {
   onDelete: (nodeId: string) => void;
   isLeaf: boolean;
   isRoot?: boolean;
+  isLoading?: boolean;
 };
