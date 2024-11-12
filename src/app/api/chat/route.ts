@@ -30,7 +30,7 @@ class OpenAIAPIError extends Error {
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = request.headers.get('x-api-key');
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('API key is missing.');
     }
