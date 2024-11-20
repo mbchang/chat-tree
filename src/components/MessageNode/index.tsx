@@ -40,6 +40,11 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
 
     const handleNodeClick = useCallback(
       (event: React.MouseEvent) => {
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) {
+          return;
+        }
+
         if (
           (event.target as HTMLElement).tagName === 'BUTTON' ||
           (event.target as HTMLElement).tagName === 'INPUT' ||
@@ -133,7 +138,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
 
     return (
       <div
-        className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px]"
+        className="p-4 border border-gray-300 rounded bg-white text-black relative w-[600px] select-text"
         onClick={handleNodeClick}
       >
         {!isRoot && (
@@ -174,7 +179,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
 
         <div
           ref={messageContainerRef}
-          className="flex flex-col space-y-2 mb-2 overflow-y-auto"
+          className="flex flex-col space-y-2 mb-2 overflow-y-auto select-text"
           style={{ maxHeight: `${maxNodeHeight}px` }}
         >
           {chatHistory.map((msg, index) => (
@@ -184,14 +189,15 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
                 msg.sender === 'user'
                   ? 'justify-end'
                   : 'justify-start'
-              }`}
+              } select-text`}
             >
               <div
                 className={`p-2 rounded-lg max-w-[80%] ${
                   msg.sender === 'user'
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-200 text-black'
-                }`}
+                } select-text`}
+                onMouseDown={(e) => e.stopPropagation()}
               >
                 <MessageContent content={msg.content} />
               </div>
@@ -220,7 +226,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
           ))}
 
           {isLoading && (
-            <div className="flex justify-start items-center space-x-2">
+            <div className="flex justify-start items-center space-x-2 select-text">
               <LoadingSpinner />
               <span className="text-gray-500">Loading...</span>
             </div>
@@ -229,14 +235,17 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
 
         {isLeaf && (
           <div className="mt-2">
-            <div className="flex items-center">
+            <div
+              className="flex items-center"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Enter your message"
                 onKeyDown={handleKeyDown}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 interactive-element"
+                className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 interactive-element select-text"
               />
               <button
                 onClick={(e) => {

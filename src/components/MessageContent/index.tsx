@@ -61,7 +61,7 @@ const MessageContent: React.FC<MessageContentProps> = ({
   const segments = parseContent(content);
 
   return (
-    <div>
+    <div className="select-text">
       {segments.map((segment, index) => {
         if (segment.type === 'latex') {
           try {
@@ -93,7 +93,7 @@ const MessageContent: React.FC<MessageContentProps> = ({
                   if (!inline && match) {
                     return (
                       <pre
-                        className={`${className} overflow-x-auto p-2 bg-gray-800 rounded text-sm`}
+                        className={`${className} overflow-x-auto p-2 bg-gray-800 rounded text-sm select-text`}
                       >
                         <code {...props} className="text-sm">
                           {children}
@@ -103,7 +103,7 @@ const MessageContent: React.FC<MessageContentProps> = ({
                   } else {
                     return (
                       <code
-                        className={`${className} bg-gray-200 rounded px-1 text-sm`}
+                        className={`${className} bg-gray-200 rounded px-1 text-sm select-text`}
                         {...props}
                       >
                         {children}
@@ -112,6 +112,7 @@ const MessageContent: React.FC<MessageContentProps> = ({
                   }
                 },
               }}
+              className="select-text"
             >
               {segment.content}
             </ReactMarkdown>
