@@ -209,7 +209,7 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
         }}
       />
-      <Panel position="top-left" className="z-50">
+      <Panel position="top-left" className="z-50 ml-2 mt-2">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -219,23 +219,24 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
               animateToNode(rootNode.id, false);
             }
           }}
-          className="bg-white hover:bg-slate-50 text-slate-700 font-medium py-2 px-4 rounded-lg shadow-md border border-slate-200 transition-all duration-200 flex items-center space-x-2 pointer-events-auto"
+          className="group flex items-center space-x-2 bg-white/90 backdrop-blur-sm hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-medium py-2 px-4 rounded-full shadow-sm hover:shadow-md border border-slate-200/60 transition-all duration-200"
+          title="Go back to the start of the conversation"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 text-blue-500"
+            className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            strokeWidth={2}
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
               d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
             />
           </svg>
-          <span>Jump to Root</span>
+          <span className="text-sm">Back to Start</span>
         </button>
       </Panel>
     </ReactFlow>
