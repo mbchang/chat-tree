@@ -12,7 +12,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   return (
     <div
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} select-text`}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} select-text message-enter`}
     >
       <div
         className={`p-2 rounded-lg max-w-[80%] ${

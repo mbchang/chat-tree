@@ -29,7 +29,7 @@ const MessageList: React.FC<MessageListProps> = ({
       })}
 
       {isLoading && (
-        <div className="flex justify-start items-center space-x-2 select-text">
+        <div className="flex justify-start items-center space-x-2 select-text fade-in">
           <LoadingSpinner />
           <span className="text-gray-500">Loading...</span>
         </div>

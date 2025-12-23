@@ -75,19 +75,29 @@ const TreeEdge: React.FC<EdgeProps<TreeEdgeData>> = ({
   const edgeColor = isActive ? ACTIVE_COLOR : INACTIVE_COLOR;
   const strokeWidth = isActive ? 3 : 2;
 
+  // Calculate approximate path length for draw-in animation
+  const pathLength =
+    JUNCTION_OFFSET +
+    horizontalDistance +
+    Math.max(0, targetY - junctionY);
+
   return (
     <>
       <path
         id={id}
-        className="react-flow__edge-path"
+        className="react-flow__edge-path edge-enter"
         d={path}
-        style={{
-          ...style,
-          stroke: edgeColor,
-          strokeWidth,
-          fill: 'none',
-          transition: 'stroke 0.2s ease, stroke-width 0.2s ease',
-        }}
+        style={
+          {
+            ...style,
+            stroke: edgeColor,
+            strokeWidth,
+            fill: 'none',
+            transition: 'stroke 0.2s ease, stroke-width 0.2s ease',
+            strokeDasharray: pathLength,
+            ['--path-length' as string]: pathLength,
+          } as React.CSSProperties
+        }
         markerEnd={markerEnd}
       />
       {/* Invisible wider path for better interaction */}

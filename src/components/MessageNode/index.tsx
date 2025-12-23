@@ -68,7 +68,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
 
     return (
       <div
-        className={`p-4 rounded bg-white text-black relative select-text transition-all duration-200 ${borderStyle}`}
+        className={`p-4 rounded bg-white text-black relative select-text transition-all duration-200 node-enter ${borderStyle}`}
         style={{ width: NODE_WIDTH }}
         onClick={handleNodeClick}
       >

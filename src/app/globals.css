@@ -24,3 +24,90 @@ body {
 .interactive-element {
   user-select: text;
 }
+
+/* Node entrance animation */
+@keyframes nodeEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.node-enter {
+  animation: nodeEntrance 0.3s ease-out forwards;
+}
+
+/* Edge entrance animation - draws the line in */
+@keyframes edgeEntrance {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: var(--path-length, 1000);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+.edge-enter {
+  animation: edgeEntrance 0.4s ease-out forwards;
+}
+
+/* Subtle pulse for newly active nodes */
+@keyframes activePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.node-active-pulse {
+  animation: activePulse 0.6s ease-out;
+}
+
+/* Message bubble entrance animation */
+@keyframes messageEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-enter {
+  animation: messageEntrance 0.25s ease-out forwards;
+}
+
+/* Staggered animation delay for message lists */
+.message-enter:nth-last-child(1) {
+  animation-delay: 0ms;
+}
+
+/* Loading spinner fade in */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
