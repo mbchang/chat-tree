@@ -311,9 +311,9 @@ export const useFlow = (isDebugMode: boolean = true) => {
           id: `e${branchNodeId}-${continuationNodeId}`,
           source: branchNodeId,
           target: continuationNodeId,
-          type: 'default',
+          type: 'tree',
           animated: true,
-          style: { stroke: '#000', strokeWidth: 2 },
+          style: { stroke: '#555', strokeWidth: 2 },
         });
 
         edges.forEach((edge) => {
@@ -364,9 +364,9 @@ export const useFlow = (isDebugMode: boolean = true) => {
         id: `e${branchNodeId}-${newBranchNodeId}`,
         source: branchNodeId,
         target: newBranchNodeId,
-        type: 'default',
+        type: 'tree',
         animated: true,
-        style: { stroke: '#000', strokeWidth: 2 },
+        style: { stroke: '#555', strokeWidth: 2 },
       });
 
       const allEdges = [...updatedEdges, ...newEdges];

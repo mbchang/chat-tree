@@ -8,6 +8,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import MessageNode from '../components/MessageNode';
+import TreeEdge from '../components/TreeEdge';
 import { useFlow } from '@/hooks/useFlow';
 
 const Page = () => {
@@ -19,6 +20,21 @@ const Page = () => {
   const nodeTypes = useMemo(
     () => ({
       messageNode: MessageNode,
+    }),
+    []
+  );
+
+  const edgeTypes = useMemo(
+    () => ({
+      tree: TreeEdge,
+    }),
+    []
+  );
+
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: 'tree',
+      style: { stroke: '#555', strokeWidth: 2 },
     }),
     []
   );
@@ -64,6 +80,8 @@ const Page = () => {
           nodes={flowData.nodes}
           edges={flowData.edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
           fitView
           minZoom={0.01}
           translateExtent={[
