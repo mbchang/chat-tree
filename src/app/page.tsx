@@ -21,28 +21,44 @@ const AutoZoom: React.FC<{
   activeNodeId: string | null;
   nodes: Node[];
 }> = ({ activeNodeId, nodes }) => {
-  const { setCenter, fitView } = useReactFlow();
+  const { setCenter, getViewport, fitView } = useReactFlow();
   const prevActiveNodeId = useRef<string | null>(null);
   const hasInitialized = useRef(false);
+  // Continuously track viewport so we have the state from BEFORE changes
+  const lastStableViewport = useRef<{
+    x: number;
+    y: number;
+    zoom: number;
+  } | null>(null);
 
   // Initial fit view on first render with nodes
   useEffect(() => {
     if (!hasInitialized.current && nodes.length > 0) {
       hasInitialized.current = true;
-      // Fit view on initial load
       setTimeout(() => {
         fitView({ padding: 0.2, duration: 0 });
+        // Capture initial viewport after fit
+        lastStableViewport.current = getViewport();
       }, 50);
       prevActiveNodeId.current = activeNodeId;
     }
-  }, [nodes, fitView, activeNodeId]);
+  }, [nodes, fitView, activeNodeId, getViewport]);
+
+  // Continuously update the stable viewport when activeNodeId hasn't changed
+  // This ensures we always have the viewport from before any branching action
+  useEffect(() => {
+    if (
+      hasInitialized.current &&
+      activeNodeId === prevActiveNodeId.current
+    ) {
+      lastStableViewport.current = getViewport();
+    }
+  }, [nodes, activeNodeId, getViewport]);
 
   // Handle zoom to active node when it changes
   useEffect(() => {
-    // Skip if not initialized yet
     if (!hasInitialized.current) return;
 
-    // Only zoom when activeNodeId changes to a new value
     if (activeNodeId && activeNodeId !== prevActiveNodeId.current) {
       const node = nodes.find((n) => n.id === activeNodeId);
       if (node && node.position) {
@@ -51,16 +67,24 @@ const AutoZoom: React.FC<{
             ? node.style.height
             : 150;
 
-        // Immediate zoom without extra delay
-        setCenter(
-          node.position.x + nodeWidth / 2,
-          node.position.y + nodeHeight / 2,
-          { zoom: 1.2, duration: 500 }
-        );
+        // Calculate target position
+        const targetX = node.position.x + nodeWidth / 2;
+        const targetY = node.position.y + nodeHeight / 2;
+
+        // Use the stable viewport we captured before the changes
+        const startViewport =
+          lastStableViewport.current || getViewport();
+
+        // Animate directly from current position to target
+        // Use a slightly longer duration for smoothness
+        setCenter(targetX, targetY, {
+          zoom: Math.max(startViewport.zoom, 1.0), // Keep current zoom or at least 1.0
+          duration: 500,
+        });
       }
       prevActiveNodeId.current = activeNodeId;
     }
-  }, [activeNodeId, nodes, setCenter]);
+  }, [activeNodeId, nodes, setCenter, getViewport]);
 
   return null;
 };
