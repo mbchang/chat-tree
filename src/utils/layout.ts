@@ -51,6 +51,97 @@ const shiftSubtree = (
 };
 
 /**
+ * Computes the bounding box (minX, maxX) of a node's entire subtree.
+ */
+const getSubtreeBounds = (
+  nodeId: string,
+  nodesMap: Map<string, Node>,
+  childrenMap: Map<string, string[]>
+): { minX: number; maxX: number } => {
+  const node = nodesMap.get(nodeId);
+  if (!node) return { minX: 0, maxX: 0 };
+
+  let minX = node.position.x;
+  let maxX = node.position.x + nodeWidth;
+
+  const children = childrenMap.get(nodeId) || [];
+  children.forEach((childId) => {
+    const childBounds = getSubtreeBounds(childId, nodesMap, childrenMap);
+    minX = Math.min(minX, childBounds.minX);
+    maxX = Math.max(maxX, childBounds.maxX);
+  });
+
+  return { minX, maxX };
+};
+
+/**
+ * Packs sibling subtrees closer together to minimize wasted space.
+ * Enforces a fixed gap between the bounding boxes of adjacent siblings.
+ */
+const packSiblings = (nodes: Node[], edges: Edge[]): Node[] => {
+  if (nodes.length === 0) return nodes;
+
+  const nodesMap = new Map<string, Node>(nodes.map((node) => [node.id, node]));
+  const childrenMap = new Map<string, string[]>();
+  const parentsMap = new Map<string, string[]>();
+
+  edges.forEach((edge) => {
+    childrenMap.set(edge.source, [
+      ...(childrenMap.get(edge.source) || []),
+      edge.target,
+    ]);
+    parentsMap.set(edge.target, [
+      ...(parentsMap.get(edge.target) || []),
+      edge.source,
+    ]);
+  });
+
+  const SIBLING_GAP = 50; // Fixed gap between sibling subtrees
+
+  // Iterate over all nodes to find parents with multiple children
+  nodes.forEach((node) => {
+    const children = childrenMap.get(node.id);
+    if (children && children.length > 1) {
+      // Sort children by X position to determine left-to-right order
+      const sortedChildren = [...children].sort((a, b) => {
+        const nodeA = nodesMap.get(a);
+        const nodeB = nodesMap.get(b);
+        return (nodeA?.position.x || 0) - (nodeB?.position.x || 0);
+      });
+
+      // Iterate through adjacent siblings
+      for (let i = 0; i < sortedChildren.length - 1; i++) {
+        const leftChildId = sortedChildren[i];
+        const rightChildId = sortedChildren[i + 1];
+
+        // Get bounds of the left sibling's subtree
+        const leftBounds = getSubtreeBounds(leftChildId, nodesMap, childrenMap);
+        // Get bounds of the right sibling's subtree
+        const rightBounds = getSubtreeBounds(rightChildId, nodesMap, childrenMap);
+
+        // Calculate current gap
+        const currentGap = rightBounds.minX - leftBounds.maxX;
+
+        // If gap is larger than desired, shift right sibling (and its successors) left
+        if (currentGap > SIBLING_GAP) {
+          const shiftAmount = -(currentGap - SIBLING_GAP);
+
+          // Shift the right sibling and its entire subtree
+          shiftSubtree(rightChildId, shiftAmount, nodesMap, childrenMap);
+
+          // Note: We don't need to manually shift subsequent siblings here because
+          // the loop will process (rightChildId, nextSibling) in the next iteration.
+          // Since rightChildId moved left, the gap to nextSibling will increase,
+          // and the next iteration will pull nextSibling left as well.
+        }
+      }
+    }
+  });
+
+  return Array.from(nodesMap.values());
+};
+
+/**
  * Centers children under their parent, processing from top to bottom.
  * This shifts entire subtrees to maintain the tree structure.
  */
@@ -123,7 +214,7 @@ export const getLayoutedNodesAndEdges = (
   // Increase vertical spacing between nodes
   dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 100, // Horizontal spacing between nodes
+    nodesep: 50, // Reduced from 100 to make siblings closer
     ranksep: 200, // Vertical spacing between ranks
   });
 
@@ -177,8 +268,11 @@ export const getLayoutedNodesAndEdges = (
     };
   });
 
+  // Post-process to pack siblings closer together
+  const packedNodes = packSiblings(layoutedNodes, edges);
+
   // Post-process to center children under their parents
-  const centeredNodes = centerChildrenUnderParents(layoutedNodes, edges);
+  const centeredNodes = centerChildrenUnderParents(packedNodes, edges);
 
   return {
     nodes: centeredNodes,

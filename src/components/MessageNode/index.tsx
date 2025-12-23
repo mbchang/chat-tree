@@ -49,6 +49,17 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
 
     const handleNodeClick = useCallback(
       (event: React.MouseEvent) => {
+        // Don't handle click if it's on an interactive element (button, input, etc.)
+        const target = event.target as HTMLElement;
+        if (
+          target.tagName === 'BUTTON' ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.closest('.interactive-element')
+        ) {
+          return;
+        }
+
         onSetActive(id);
         zoomToNode(event);
       },

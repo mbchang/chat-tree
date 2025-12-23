@@ -8,7 +8,7 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   useReactFlow,
-  Node,
+  Viewport,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import MessageNode from '../components/MessageNode';
@@ -16,84 +16,19 @@ import TreeEdge from '../components/TreeEdge';
 import { useFlow } from '@/hooks/useFlow';
 import { nodeWidth } from '@/constants/layout';
 
-// Component that handles auto-zoom to new active nodes and initial fit
-const AutoZoom: React.FC<{
-  activeNodeId: string | null;
-  nodes: Node[];
-}> = ({ activeNodeId, nodes }) => {
-  const { setCenter, getViewport, fitView } = useReactFlow();
-  const prevActiveNodeId = useRef<string | null>(null);
-  const hasInitialized = useRef(false);
-  // Continuously track viewport so we have the state from BEFORE changes
-  const lastStableViewport = useRef<{
-    x: number;
-    y: number;
-    zoom: number;
-  } | null>(null);
-
-  // Initial fit view on first render with nodes
-  useEffect(() => {
-    if (!hasInitialized.current && nodes.length > 0) {
-      hasInitialized.current = true;
-      setTimeout(() => {
-        fitView({ padding: 0.2, duration: 0 });
-        // Capture initial viewport after fit
-        lastStableViewport.current = getViewport();
-      }, 50);
-      prevActiveNodeId.current = activeNodeId;
-    }
-  }, [nodes, fitView, activeNodeId, getViewport]);
-
-  // Continuously update the stable viewport when activeNodeId hasn't changed
-  // This ensures we always have the viewport from before any branching action
-  useEffect(() => {
-    if (
-      hasInitialized.current &&
-      activeNodeId === prevActiveNodeId.current
-    ) {
-      lastStableViewport.current = getViewport();
-    }
-  }, [nodes, activeNodeId, getViewport]);
-
-  // Handle zoom to active node when it changes
-  useEffect(() => {
-    if (!hasInitialized.current) return;
-
-    if (activeNodeId && activeNodeId !== prevActiveNodeId.current) {
-      const node = nodes.find((n) => n.id === activeNodeId);
-      if (node && node.position) {
-        const nodeHeight =
-          typeof node.style?.height === 'number'
-            ? node.style.height
-            : 150;
-
-        // Calculate target position
-        const targetX = node.position.x + nodeWidth / 2;
-        const targetY = node.position.y + nodeHeight / 2;
-
-        // Use the stable viewport we captured before the changes
-        const startViewport =
-          lastStableViewport.current || getViewport();
-
-        // Animate directly from current position to target
-        // Use a slightly longer duration for smoothness
-        setCenter(targetX, targetY, {
-          zoom: Math.max(startViewport.zoom, 1.0), // Keep current zoom or at least 1.0
-          duration: 500,
-        });
-      }
-      prevActiveNodeId.current = activeNodeId;
-    }
-  }, [activeNodeId, nodes, setCenter, getViewport]);
-
-  return null;
-};
+// Store the last stable viewport before any node changes
+let savedViewport: Viewport = { x: 0, y: 0, zoom: 1 };
 
 // Inner component that uses useFlow and has access to ReactFlow context
 const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
   isDebugMode,
 }) => {
   const { flowData, activeNodeId } = useFlow(isDebugMode);
+  const { fitView, getViewport, setViewport } = useReactFlow();
+
+  const hasInitialized = useRef(false);
+  const prevActiveNodeId = useRef<string | null>(null);
+  const prevNodesLength = useRef(0);
 
   const nodeTypes = useMemo(
     () => ({
@@ -117,6 +52,100 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
     []
   );
 
+  // Save viewport whenever nodes haven't changed (stable state)
+  useEffect(() => {
+    if (
+      hasInitialized.current &&
+      flowData.nodes.length === prevNodesLength.current
+    ) {
+      savedViewport = getViewport();
+    }
+    prevNodesLength.current = flowData.nodes.length;
+  }, [flowData.nodes, getViewport]);
+
+  // Initial fit view
+  useEffect(() => {
+    if (!hasInitialized.current && flowData.nodes.length > 0) {
+      hasInitialized.current = true;
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 0 });
+        savedViewport = getViewport();
+      }, 50);
+      prevActiveNodeId.current = activeNodeId;
+    }
+  }, [flowData.nodes, fitView, activeNodeId, getViewport]);
+
+  // Handle zoom to active node when it changes
+  useEffect(() => {
+    if (!hasInitialized.current) return;
+
+    if (activeNodeId && activeNodeId !== prevActiveNodeId.current) {
+      const node = flowData.nodes.find((n) => n.id === activeNodeId);
+      if (node && node.position) {
+        const nodeHeight =
+          typeof node.style?.height === 'number'
+            ? node.style.height
+            : 150;
+
+        // Calculate target center position
+        const targetX = node.position.x + nodeWidth / 2;
+        const targetY = node.position.y + nodeHeight / 2;
+
+        // Get canvas dimensions
+        const canvasWidth = window.innerWidth;
+        const canvasHeight = window.innerHeight;
+
+        // Use the saved viewport as starting point
+        const startViewport = { ...savedViewport };
+        const targetZoom = Math.max(startViewport.zoom, 0.8);
+
+        // Calculate target viewport to center the node
+        const endViewport = {
+          x: canvasWidth / 2 - targetX * targetZoom,
+          y: canvasHeight / 2 - targetY * targetZoom,
+          zoom: targetZoom,
+        };
+
+        // First, immediately restore to saved viewport (undo any auto-adjustments)
+        setViewport(startViewport, { duration: 0 });
+
+        // Then animate to target
+        const duration = 400;
+        const startTime = performance.now();
+
+        const animate = (currentTime: number) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          // Ease-out cubic for smooth deceleration
+          const eased = 1 - Math.pow(1 - progress, 3);
+
+          setViewport(
+            {
+              x:
+                startViewport.x +
+                (endViewport.x - startViewport.x) * eased,
+              y:
+                startViewport.y +
+                (endViewport.y - startViewport.y) * eased,
+              zoom:
+                startViewport.zoom +
+                (endViewport.zoom - startViewport.zoom) * eased,
+            },
+            { duration: 0 }
+          );
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        };
+
+        requestAnimationFrame(animate);
+      }
+      prevActiveNodeId.current = activeNodeId;
+    }
+  }, [activeNodeId, flowData.nodes, setViewport]);
+
   return (
     <ReactFlow
       nodes={flowData.nodes}
@@ -131,7 +160,6 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
       ]}
       style={{ backgroundColor: 'transparent' }}
     >
-      <AutoZoom activeNodeId={activeNodeId} nodes={flowData.nodes} />
       <Background
         variant={BackgroundVariant.Dots}
         gap={20}
