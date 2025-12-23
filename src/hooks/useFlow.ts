@@ -275,7 +275,16 @@ export const useFlow = (isDebugMode: boolean = true) => {
     [flowData.nodes, flowData.edges] // Removed apiKey from dependencies
   );
 
+  // Ref to track which node to zoom to after branch creation
+  const pendingZoomNodeRef = useRef<string | null>(null);
+
   const handleBranch = (nodeId: string, messageId: string) => {
+    const timestamp = Date.now();
+    const newBranchNodeId = `${timestamp}-newbranch`;
+
+    // Store the ID to zoom to after state updates
+    pendingZoomNodeRef.current = newBranchNodeId;
+
     setFlowData((prevFlowData) => {
       const { nodes, edges } = prevFlowData;
 
@@ -292,10 +301,8 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
       if (messageIndex === -1) return prevFlowData;
 
-      const timestamp = Date.now();
       const branchNodeId = `${timestamp}-branch`;
       const continuationNodeId = `${timestamp}-continuation`;
-      const newBranchNodeId = `${timestamp}-newbranch`;
 
       const chatHistoryUpToBranch = originalData.chatHistory.slice(
         0,
@@ -415,9 +422,6 @@ export const useFlow = (isDebugMode: boolean = true) => {
         targetPosition: Position.Top,
       };
 
-      // Set the new branch as the active node
-      setActiveNodeId(newBranchNodeId);
-
       updatedNodes.push(newBranchNode);
 
       newEdges.push({
@@ -444,6 +448,15 @@ export const useFlow = (isDebugMode: boolean = true) => {
         edges: layouted.edges,
       };
     });
+
+    // Set active node after the state update is queued
+    // Use setTimeout to ensure it happens after React processes the state update
+    setTimeout(() => {
+      if (pendingZoomNodeRef.current) {
+        setActiveNodeId(pendingZoomNodeRef.current);
+        pendingZoomNodeRef.current = null;
+      }
+    }, 50);
   };
 
   useEffect(() => {
