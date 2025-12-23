@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { MessageInputProps } from '../types';
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -7,6 +7,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
   onFocus,
 }) => {
+  const [isFocused, setIsFocused] = useState(false);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -17,27 +19,43 @@ const MessageInput: React.FC<MessageInputProps> = ({
     [onSend]
   );
 
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    onFocus?.();
+  }, [onFocus]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+  }, []);
+
   return (
-    <div className="mt-2">
+    <div className="mt-4 pt-4 border-t border-slate-100">
       <div
-        className="flex items-center"
+        className="flex items-end gap-2"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter your message"
+          placeholder="Type your message..."
           onKeyDown={handleKeyDown}
           onClick={(e) => e.stopPropagation()}
-          onFocus={onFocus}
-          className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 interactive-element select-text"
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          rows={1}
+          className={`flex-1 w-full px-4 py-3 bg-slate-50 border rounded-xl text-slate-800 placeholder:text-slate-400 interactive-element select-text resize-none transition-all duration-200 ${
+            isFocused
+              ? 'bg-white border-blue-400 ring-2 ring-blue-100 shadow-sm'
+              : 'border-slate-200 hover:border-slate-300'
+          }`}
+          style={{ minHeight: '44px' }}
         />
         <button
           onClick={(e) => {
             e.stopPropagation();
             onSend();
           }}
-          className="ml-2 text-blue-500 hover:text-blue-600 interactive-element"
+          className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all duration-200 interactive-element hover:scale-105 active:scale-95 shadow-md h-[44px] w-[44px] flex items-center justify-center shrink-0"
           aria-label="Send message"
         >
           <svg

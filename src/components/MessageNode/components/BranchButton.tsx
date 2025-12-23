@@ -8,8 +8,7 @@ const BranchButton: React.FC<BranchButtonProps> = ({ messageId, onBranch }) => {
         e.stopPropagation();
         onBranch(messageId);
       }}
-      className="ml-2 text-gray-400 hover:text-green-500 transition-colors duration-200 interactive-element"
-      style={{ fontSize: '12px', padding: '2px' }}
+      className="ml-2 p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all duration-200 interactive-element opacity-60 hover:opacity-100"
       aria-label={`Branch from message ${messageId}`}
     >
       <svg

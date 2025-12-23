@@ -14,6 +14,7 @@ export type MessageNodeData = {
   isRoot?: boolean;
   isLoading?: boolean;
   isOnActivePath?: boolean;
+  depth?: number; // Depth in the tree for accent color
 };
 
 export type TreeEdgeData = {

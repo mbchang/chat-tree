@@ -194,8 +194,47 @@ export const getLayoutedNodesAndEdges = (
   };
 };
 
+/**
+ * Calculate the depth of each node in the tree (distance from root)
+ */
+const calculateDepths = (
+  nodes: Node[],
+  edges: Edge[]
+): Map<string, number> => {
+  const depths = new Map<string, number>();
+  const targetIds = new Set(edges.map((e) => e.target));
+
+  // Find root node (no incoming edges)
+  const rootNode = nodes.find((node) => !targetIds.has(node.id));
+  if (!rootNode) return depths;
+
+  // BFS to calculate depths
+  const queue: { id: string; depth: number }[] = [{ id: rootNode.id, depth: 0 }];
+  const childrenMap = new Map<string, string[]>();
+
+  edges.forEach((edge) => {
+    const children = childrenMap.get(edge.source) || [];
+    children.push(edge.target);
+    childrenMap.set(edge.source, children);
+  });
+
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift()!;
+    depths.set(id, depth);
+
+    const children = childrenMap.get(id) || [];
+    children.forEach((childId) => {
+      queue.push({ id: childId, depth: depth + 1 });
+    });
+  }
+
+  return depths;
+};
+
 export const updateIsLeaf = (nodes: Node[], edges: Edge[]) => {
   const sourceIds = new Set(edges.map((edge) => edge.source));
+  const depths = calculateDepths(nodes, edges);
+
   const updatedNodes = nodes.map((node) => {
     const isLeaf = !sourceIds.has(node.id);
     const nodeData = node.data as MessageNodeData;
@@ -204,6 +243,7 @@ export const updateIsLeaf = (nodes: Node[], edges: Edge[]) => {
       data: {
         ...nodeData,
         isLeaf,
+        depth: depths.get(node.id) ?? 0,
       },
     };
   });

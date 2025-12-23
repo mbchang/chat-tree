@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { maxNodeHeight } from '@/constants/layout';
 import { MessageNodeData } from '@/types/chat';
@@ -8,7 +8,7 @@ import {
   MessageInput,
 } from './components';
 import { useNodeZoom, useScrollContainer } from './hooks';
-import { NODE_WIDTH, HANDLE_STYLE } from './constants';
+import { NODE_WIDTH } from './constants';
 
 interface MessageNodeProps {
   data: MessageNodeData;
@@ -49,9 +49,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
 
     const handleNodeClick = useCallback(
       (event: React.MouseEvent) => {
-        // Set this node as active
         onSetActive(id);
-        // Then handle zoom
         zoomToNode(event);
       },
       [onSetActive, id, zoomToNode]
@@ -61,15 +59,33 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
       onSetActive(id);
     }, [onSetActive, id]);
 
-    // Border style based on active path
-    const borderStyle = isOnActivePath
-      ? 'border-blue-400 border-2 shadow-md'
-      : 'border-gray-300 border';
+    // Dynamic styles based on active state
+    const containerStyle = useMemo(
+      () => ({
+        width: NODE_WIDTH,
+        backgroundColor: '#ffffff',
+        borderColor: isOnActivePath ? '#cbd5e1' : '#e2e8f0',
+        boxShadow: isOnActivePath
+          ? '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
+          : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+      }),
+      [isOnActivePath]
+    );
+
+    const handleStyle = useMemo(
+      () => ({
+        width: 10,
+        height: 10,
+        backgroundColor: '#94a3b8',
+        border: '2px solid white',
+      }),
+      []
+    );
 
     return (
       <div
-        className={`p-4 rounded bg-white text-black relative select-text transition-all duration-200 node-enter ${borderStyle}`}
-        style={{ width: NODE_WIDTH }}
+        className="p-5 rounded-xl relative select-text transition-all duration-200 node-enter border"
+        style={containerStyle}
         onClick={handleNodeClick}
       >
         {!isRoot && <DeleteButton onDelete={handleDelete} />}
@@ -77,13 +93,13 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
         <Handle
           type="target"
           position={Position.Top}
-          style={{ top: -8, ...HANDLE_STYLE }}
+          style={{ top: -6, ...handleStyle }}
           className="interactive-element"
         />
 
         <div
           ref={containerRef}
-          className="flex flex-col space-y-2 mb-2 overflow-y-auto select-text"
+          className="flex flex-col space-y-3 mb-3 overflow-y-auto select-text"
           style={{ maxHeight: maxNodeHeight }}
         >
           <MessageList
@@ -106,7 +122,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
         <Handle
           type="source"
           position={Position.Bottom}
-          style={{ bottom: -8, ...HANDLE_STYLE }}
+          style={{ bottom: -6, ...handleStyle }}
           className="interactive-element"
         />
       </div>

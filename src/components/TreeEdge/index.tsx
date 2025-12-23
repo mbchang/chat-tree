@@ -9,7 +9,7 @@ const CORNER_RADIUS = 16;
 
 // Colors for active/inactive states
 const ACTIVE_COLOR = '#3b82f6'; // blue-500
-const INACTIVE_COLOR = '#d1d5db'; // gray-300
+const INACTIVE_COLOR = '#cbd5e1'; // slate-300
 
 /**
  * Custom tree edge that creates clean, non-overlapping paths with rounded corners.

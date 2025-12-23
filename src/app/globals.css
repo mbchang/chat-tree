@@ -3,26 +3,61 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Softer background with subtle warmth */
+  --background: #f8fafc;
+  --background-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+  --foreground: #1e293b;
+
+  /* Node colors */
+  --node-bg: #ffffff;
+  --node-border: #e2e8f0;
+  --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+
+  /* Accent color */
+  --accent-color: #3b82f6; /* blue */
+
+  /* User message colors */
+  --user-bubble-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --user-bubble-text: #ffffff;
+
+  /* Assistant message colors */
+  --assistant-bubble-bg: #f1f5f9;
+  --assistant-bubble-text: #1e293b;
+
+  /* Active path */
+  --active-glow: rgba(59, 130, 246, 0.15);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f172a;
+    --background-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --foreground: #f1f5f9;
+    --node-bg: #1e293b;
+    --node-border: #334155;
+    --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+    --assistant-bubble-bg: #334155;
+    --assistant-bubble-text: #f1f5f9;
   }
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background-gradient);
+  background-attachment: fixed;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   user-select: text;
 }
 
 .interactive-element {
   user-select: text;
+}
+
+/* Subtle dot pattern overlay for background */
+.bg-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.03) 1px, transparent 0);
+  background-size: 24px 24px;
 }
 
 /* Node entrance animation */
