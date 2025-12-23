@@ -199,6 +199,10 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
           borderRadius: '12px',
           border: '1px solid rgba(226, 232, 240, 0.8)',
+          cursor: 'pointer',
+        }}
+        onClick={() => {
+          fitView({ padding: 0.2, duration: 800 });
         }}
       />
       <Controls
