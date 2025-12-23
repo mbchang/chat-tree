@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Node, Edge, Position } from 'reactflow';
-import { MessageNodeData, ChatMessage } from '@/types/chat';
+import { MessageNodeData, ChatMessage, TreeEdgeData } from '@/types/chat';
 import {
   getLayoutedNodesAndEdges,
   updateIsLeaf,
@@ -9,14 +9,63 @@ import {
 } from '@/utils/layout';
 import { getAIService, AIServiceInterface } from '@/services/ai';
 
+/**
+ * Computes the path (edge IDs) from root to a given node
+ */
+const getPathToNode = (
+  nodeId: string,
+  edges: Edge[]
+): Set<string> => {
+  const pathEdgeIds = new Set<string>();
+  let currentNodeId = nodeId;
+
+  while (currentNodeId) {
+    const parentEdge = edges.find((edge) => edge.target === currentNodeId);
+    if (parentEdge) {
+      pathEdgeIds.add(parentEdge.id);
+      currentNodeId = parentEdge.source;
+    } else {
+      break; // Reached root
+    }
+  }
+
+  return pathEdgeIds;
+};
+
+/**
+ * Computes the path (node IDs) from root to a given node
+ */
+const getNodePathToNode = (
+  nodeId: string,
+  edges: Edge[]
+): Set<string> => {
+  const pathNodeIds = new Set<string>();
+  pathNodeIds.add(nodeId);
+  let currentNodeId = nodeId;
+
+  while (currentNodeId) {
+    const parentEdge = edges.find((edge) => edge.target === currentNodeId);
+    if (parentEdge) {
+      pathNodeIds.add(parentEdge.source);
+      currentNodeId = parentEdge.source;
+    } else {
+      break; // Reached root
+    }
+  }
+
+  return pathNodeIds;
+};
+
 export const useFlow = (isDebugMode: boolean = true) => {
   const [flowData, setFlowData] = useState<{
     nodes: Node<MessageNodeData>[];
-    edges: Edge[];
+    edges: Edge<TreeEdgeData>[];
   }>({
     nodes: [],
     edges: [],
   });
+
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
 
   // Ref to hold the current isDebugMode value
   const isDebugModeRef = useRef(isDebugMode);
@@ -37,6 +86,11 @@ export const useFlow = (isDebugMode: boolean = true) => {
 
   // Ref to track the node currently awaiting an assistant response
   const awaitingResponseRef = useRef<string | null>(null);
+
+  // Handle setting the active node
+  const handleSetActive = useCallback((nodeId: string) => {
+    setActiveNodeId(nodeId);
+  }, []);
 
   const handleDelete = (nodeId: string) => {
     setFlowData((prevFlowData) => {
@@ -261,9 +315,10 @@ export const useFlow = (isDebugMode: boolean = true) => {
           onBranch: (msgId: string) =>
             handleBranch(branchNodeId, msgId),
           onDelete: handleDelete,
+          onSetActive: handleSetActive,
           isLeaf: true,
-          isRoot: originalData.isRoot, // Preserve isRoot status
-          isLoading: false, // Initialize loading state
+          isRoot: originalData.isRoot,
+          isLoading: false,
         },
         position: originalNode.position,
         sourcePosition: Position.Bottom,
@@ -293,9 +348,10 @@ export const useFlow = (isDebugMode: boolean = true) => {
             onBranch: (msgId: string) =>
               handleBranch(continuationNodeId, msgId),
             onDelete: handleDelete,
+            onSetActive: handleSetActive,
             isLeaf: true,
-            isRoot: false, // New continuation should never be root
-            isLoading: false, // Initialize loading state
+            isRoot: false,
+            isLoading: false,
           },
           position: {
             x: branchNode.position.x,
@@ -346,9 +402,10 @@ export const useFlow = (isDebugMode: boolean = true) => {
           onBranch: (msgId: string) =>
             handleBranch(newBranchNodeId, msgId),
           onDelete: handleDelete,
+          onSetActive: handleSetActive,
           isLeaf: true,
-          isRoot: false, // New branch should never be root
-          isLoading: false, // Initialize loading state
+          isRoot: false,
+          isLoading: false,
         },
         position: {
           x: branchNode.position.x + 300 * branchOutEdges.length,
@@ -357,6 +414,9 @@ export const useFlow = (isDebugMode: boolean = true) => {
         sourcePosition: Position.Bottom,
         targetPosition: Position.Top,
       };
+
+      // Set the new branch as the active node
+      setActiveNodeId(newBranchNodeId);
 
       updatedNodes.push(newBranchNode);
 
@@ -402,9 +462,10 @@ export const useFlow = (isDebugMode: boolean = true) => {
           handleSendMessage('1', message),
         onBranch: (messageId: string) => handleBranch('1', messageId),
         onDelete: handleDelete,
+        onSetActive: handleSetActive,
         isLeaf: true,
         isRoot: true,
-        isLoading: false, // Initialize loading state
+        isLoading: false,
       },
       position: { x: 0, y: 0 },
       sourcePosition: Position.Bottom,
@@ -418,13 +479,48 @@ export const useFlow = (isDebugMode: boolean = true) => {
       nodes: nodesWithIsLeaf,
       edges: [],
     });
+
+    // Set the initial node as active
+    setActiveNodeId('1');
   }, []); // No dependencies here to run only once
 
+  // Compute flow data with active path highlighting
+  const flowDataWithActivePath = useCallback(() => {
+    if (!activeNodeId) {
+      return flowData;
+    }
+
+    const activeEdgeIds = getPathToNode(activeNodeId, flowData.edges);
+    const activeNodeIds = getNodePathToNode(activeNodeId, flowData.edges);
+
+    const edgesWithActive = flowData.edges.map((edge) => ({
+      ...edge,
+      data: {
+        ...edge.data,
+        isActive: activeEdgeIds.has(edge.id),
+      },
+    }));
+
+    const nodesWithActive = flowData.nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        isOnActivePath: activeNodeIds.has(node.id),
+      },
+    }));
+
+    return {
+      nodes: nodesWithActive,
+      edges: edgesWithActive,
+    };
+  }, [flowData, activeNodeId]);
+
   return {
-    flowData,
+    flowData: flowDataWithActivePath(),
     handleDelete,
     handleSendMessage,
     handleBranch,
+    activeNodeId,
   };
 };
 

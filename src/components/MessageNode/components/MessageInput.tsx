@@ -5,6 +5,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   value,
   onChange,
   onSend,
+  onFocus,
 }) => {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -28,6 +29,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
           placeholder="Enter your message"
           onKeyDown={handleKeyDown}
           onClick={(e) => e.stopPropagation()}
+          onFocus={onFocus}
           className="flex-1 p-2 border border-gray-300 rounded text-black placeholder:text-gray-600 interactive-element select-text"
         />
         <button

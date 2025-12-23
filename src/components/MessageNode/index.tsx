@@ -22,9 +22,11 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
       onSendMessage,
       onBranch,
       onDelete,
+      onSetActive,
       isLeaf,
       isRoot,
       isLoading,
+      isOnActivePath,
     } = data;
 
     const [inputValue, setInputValue] = useState('');
@@ -45,11 +47,30 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
       onDelete(id);
     }, [onDelete, id]);
 
+    const handleNodeClick = useCallback(
+      (event: React.MouseEvent) => {
+        // Set this node as active
+        onSetActive(id);
+        // Then handle zoom
+        zoomToNode(event);
+      },
+      [onSetActive, id, zoomToNode]
+    );
+
+    const handleInputFocus = useCallback(() => {
+      onSetActive(id);
+    }, [onSetActive, id]);
+
+    // Border style based on active path
+    const borderStyle = isOnActivePath
+      ? 'border-blue-400 border-2 shadow-md'
+      : 'border-gray-300 border';
+
     return (
       <div
-        className="p-4 border border-gray-300 rounded bg-white text-black relative select-text"
+        className={`p-4 rounded bg-white text-black relative select-text transition-all duration-200 ${borderStyle}`}
         style={{ width: NODE_WIDTH }}
-        onClick={zoomToNode}
+        onClick={handleNodeClick}
       >
         {!isRoot && <DeleteButton onDelete={handleDelete} />}
 
@@ -78,6 +99,7 @@ const MessageNode: React.FC<MessageNodeProps> = React.memo(
             value={inputValue}
             onChange={setInputValue}
             onSend={handleSend}
+            onFocus={handleInputFocus}
           />
         )}
 

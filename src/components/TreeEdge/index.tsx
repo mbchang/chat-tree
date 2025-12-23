@@ -1,10 +1,15 @@
 import React from 'react';
 import { EdgeProps } from 'reactflow';
+import { TreeEdgeData } from '@/types/chat';
 
 // Fixed vertical drop from parent before horizontal routing
 const JUNCTION_OFFSET = 80;
 // Radius for rounded corners
 const CORNER_RADIUS = 16;
+
+// Colors for active/inactive states
+const ACTIVE_COLOR = '#3b82f6'; // blue-500
+const INACTIVE_COLOR = '#d1d5db'; // gray-300
 
 /**
  * Custom tree edge that creates clean, non-overlapping paths with rounded corners.
@@ -13,7 +18,7 @@ const CORNER_RADIUS = 16;
  * Uses a fixed offset from the parent so all sibling edges share
  * the same horizontal junction level.
  */
-const TreeEdge: React.FC<EdgeProps> = ({
+const TreeEdge: React.FC<EdgeProps<TreeEdgeData>> = ({
   id,
   sourceX,
   sourceY,
@@ -21,7 +26,9 @@ const TreeEdge: React.FC<EdgeProps> = ({
   targetY,
   style = {},
   markerEnd,
+  data,
 }) => {
+  const isActive = data?.isActive ?? false;
   // Fixed junction Y - same for all edges from the same parent
   const junctionY = sourceY + JUNCTION_OFFSET;
 
@@ -54,12 +61,19 @@ const TreeEdge: React.FC<EdgeProps> = ({
     path = `
       M ${sourceX} ${sourceY}
       L ${sourceX} ${junctionY - effectiveRadius}
-      Q ${sourceX} ${junctionY} ${sourceX + dir * effectiveRadius} ${junctionY}
+      Q ${sourceX} ${junctionY} ${
+      sourceX + dir * effectiveRadius
+    } ${junctionY}
       L ${targetX - dir * effectiveRadius} ${junctionY}
-      Q ${targetX} ${junctionY} ${targetX} ${junctionY + effectiveRadius}
+      Q ${targetX} ${junctionY} ${targetX} ${
+      junctionY + effectiveRadius
+    }
       L ${targetX} ${targetY}
     `;
   }
+
+  const edgeColor = isActive ? ACTIVE_COLOR : INACTIVE_COLOR;
+  const strokeWidth = isActive ? 3 : 2;
 
   return (
     <>
@@ -69,7 +83,10 @@ const TreeEdge: React.FC<EdgeProps> = ({
         d={path}
         style={{
           ...style,
+          stroke: edgeColor,
+          strokeWidth,
           fill: 'none',
+          transition: 'stroke 0.2s ease, stroke-width 0.2s ease',
         }}
         markerEnd={markerEnd}
       />
@@ -87,4 +104,3 @@ const TreeEdge: React.FC<EdgeProps> = ({
 };
 
 export default TreeEdge;
-

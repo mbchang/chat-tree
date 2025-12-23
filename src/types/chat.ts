@@ -9,7 +9,13 @@ export type MessageNodeData = {
   onSendMessage: (message: string) => Promise<void>;
   onBranch: (messageId: string) => void;
   onDelete: (nodeId: string) => void;
+  onSetActive: (nodeId: string) => void;
   isLeaf: boolean;
   isRoot?: boolean;
   isLoading?: boolean;
+  isOnActivePath?: boolean;
+};
+
+export type TreeEdgeData = {
+  isActive?: boolean;
 };

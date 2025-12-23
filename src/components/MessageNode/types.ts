@@ -19,6 +19,7 @@ export interface MessageInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  onFocus?: () => void;
 }
 
 export interface MessageListProps {
