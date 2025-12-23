@@ -449,14 +449,16 @@ export const useFlow = (isDebugMode: boolean = true) => {
       };
     });
 
-    // Set active node after the state update is queued
-    // Use setTimeout to ensure it happens after React processes the state update
-    setTimeout(() => {
-      if (pendingZoomNodeRef.current) {
-        setActiveNodeId(pendingZoomNodeRef.current);
-        pendingZoomNodeRef.current = null;
-      }
-    }, 50);
+    // Set active node after React processes the state update
+    // requestAnimationFrame ensures we wait for the next render cycle
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (pendingZoomNodeRef.current) {
+          setActiveNodeId(pendingZoomNodeRef.current);
+          pendingZoomNodeRef.current = null;
+        }
+      });
+    });
   };
 
   useEffect(() => {

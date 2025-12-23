@@ -16,47 +16,50 @@ import TreeEdge from '../components/TreeEdge';
 import { useFlow } from '@/hooks/useFlow';
 import { nodeWidth } from '@/constants/layout';
 
-// Component that handles auto-zoom to new active nodes
+// Component that handles auto-zoom to new active nodes and initial fit
 const AutoZoom: React.FC<{
   activeNodeId: string | null;
   nodes: Node[];
 }> = ({ activeNodeId, nodes }) => {
-  const { setCenter } = useReactFlow();
+  const { setCenter, fitView } = useReactFlow();
   const prevActiveNodeId = useRef<string | null>(null);
-  const initialRender = useRef(true);
+  const hasInitialized = useRef(false);
 
+  // Initial fit view on first render with nodes
   useEffect(() => {
-    // Skip the initial render
-    if (initialRender.current) {
-      initialRender.current = false;
+    if (!hasInitialized.current && nodes.length > 0) {
+      hasInitialized.current = true;
+      // Fit view on initial load
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 0 });
+      }, 50);
       prevActiveNodeId.current = activeNodeId;
-      return;
     }
+  }, [nodes, fitView, activeNodeId]);
+
+  // Handle zoom to active node when it changes
+  useEffect(() => {
+    // Skip if not initialized yet
+    if (!hasInitialized.current) return;
 
     // Only zoom when activeNodeId changes to a new value
     if (activeNodeId && activeNodeId !== prevActiveNodeId.current) {
-      // Use a small delay to ensure the layout has been computed
-      const timeoutId = setTimeout(() => {
-        const node = nodes.find((n) => n.id === activeNodeId);
-        if (node && node.position) {
-          const nodeHeight =
-            typeof node.style?.height === 'number'
-              ? node.style.height
-              : 150;
+      const node = nodes.find((n) => n.id === activeNodeId);
+      if (node && node.position) {
+        const nodeHeight =
+          typeof node.style?.height === 'number'
+            ? node.style.height
+            : 150;
 
-          setCenter(
-            node.position.x + nodeWidth / 2,
-            node.position.y + nodeHeight / 2,
-            { zoom: 1.2, duration: 400 }
-          );
-        }
-      }, 150); // Delay to ensure layout is complete
-
+        // Immediate zoom without extra delay
+        setCenter(
+          node.position.x + nodeWidth / 2,
+          node.position.y + nodeHeight / 2,
+          { zoom: 1.2, duration: 500 }
+        );
+      }
       prevActiveNodeId.current = activeNodeId;
-      return () => clearTimeout(timeoutId);
     }
-
-    prevActiveNodeId.current = activeNodeId;
   }, [activeNodeId, nodes, setCenter]);
 
   return null;
@@ -97,7 +100,6 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultEdgeOptions={defaultEdgeOptions}
-      fitView
       minZoom={0.01}
       translateExtent={[
         [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
