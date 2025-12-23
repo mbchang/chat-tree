@@ -12,7 +12,7 @@
     "dagre": "^0.8.5",
     "eventsource-parser": "^3.0.0",
     "katex": "^0.16.11",
-    "next": "15.0.2",
+    "next": "^15.5.9",
     "openai": "^4.71.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -31,7 +31,7 @@
     "@types/react-katex": "^3.0.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
-    "eslint-config-next": "15.0.2",
+    "eslint-config-next": "^15.5.9",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5"
