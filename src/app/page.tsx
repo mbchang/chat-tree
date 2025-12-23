@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   MiniMap,
@@ -9,6 +15,7 @@ import ReactFlow, {
   BackgroundVariant,
   useReactFlow,
   Viewport,
+  Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import MessageNode from '../components/MessageNode';
@@ -24,7 +31,8 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
   isDebugMode,
 }) => {
   const { flowData, activeNodeId } = useFlow(isDebugMode);
-  const { fitView, getViewport, setViewport } = useReactFlow();
+  const { fitView, getViewport, setViewport, getNodes } =
+    useReactFlow();
 
   const hasInitialized = useRef(false);
   const prevActiveNodeId = useRef<string | null>(null);
@@ -75,12 +83,13 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
     }
   }, [flowData.nodes, fitView, activeNodeId, getViewport]);
 
-  // Handle zoom to active node when it changes
-  useEffect(() => {
-    if (!hasInitialized.current) return;
+  // Reusable animation function
+  const animateToNode = useCallback(
+    (nodeId: string, useSavedViewport = false) => {
+      // Use getNodes() to ensure we have the latest registered nodes with up-to-date positions
+      const currentNodes = getNodes();
+      const node = currentNodes.find((n) => n.id === nodeId);
 
-    if (activeNodeId && activeNodeId !== prevActiveNodeId.current) {
-      const node = flowData.nodes.find((n) => n.id === activeNodeId);
       if (node && node.position) {
         const nodeHeight =
           typeof node.style?.height === 'number'
@@ -95,8 +104,12 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
         const canvasWidth = window.innerWidth;
         const canvasHeight = window.innerHeight;
 
-        // Use the saved viewport as starting point
-        const startViewport = { ...savedViewport };
+        // Determine starting viewport
+        const currentViewport = getViewport();
+        const startViewport = useSavedViewport
+          ? { ...savedViewport }
+          : currentViewport;
+
         const targetZoom = Math.max(startViewport.zoom, 0.8);
 
         // Calculate target viewport to center the node
@@ -106,8 +119,10 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
           zoom: targetZoom,
         };
 
-        // First, immediately restore to saved viewport (undo any auto-adjustments)
-        setViewport(startViewport, { duration: 0 });
+        // If using saved viewport, restore immediately first
+        if (useSavedViewport) {
+          setViewport(startViewport, { duration: 0 });
+        }
 
         // Then animate to target
         const duration = 400;
@@ -142,9 +157,20 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
 
         requestAnimationFrame(animate);
       }
+    },
+    [getNodes, getViewport, setViewport]
+  );
+
+  // Handle zoom to active node when it changes
+  useEffect(() => {
+    if (!hasInitialized.current) return;
+
+    if (activeNodeId && activeNodeId !== prevActiveNodeId.current) {
+      // Use saved viewport for auto-zoom to prevent jump
+      animateToNode(activeNodeId, true);
       prevActiveNodeId.current = activeNodeId;
     }
-  }, [activeNodeId, flowData.nodes, setViewport]);
+  }, [activeNodeId, animateToNode]);
 
   return (
     <ReactFlow
@@ -183,6 +209,35 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
         }}
       />
+      <Panel position="top-left" className="z-50">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const nodes = getNodes();
+            const rootNode = nodes.find((n) => n.data.isRoot);
+            if (rootNode) {
+              animateToNode(rootNode.id, false);
+            }
+          }}
+          className="bg-white hover:bg-slate-50 text-slate-700 font-medium py-2 px-4 rounded-lg shadow-md border border-slate-200 transition-all duration-200 flex items-center space-x-2 pointer-events-auto"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 text-blue-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+            />
+          </svg>
+          <span>Jump to Root</span>
+        </button>
+      </Panel>
     </ReactFlow>
   );
 };
