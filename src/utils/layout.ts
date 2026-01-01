@@ -2,8 +2,6 @@ import dagre from 'dagre';
 import { Node, Edge } from 'reactflow';
 import { MessageNodeData } from '@/types/chat';
 import {
-  baseNodeHeight,
-  messageHeight,
   nodeWidth,
   minHeight,
   maxNodeHeight,
@@ -25,7 +23,10 @@ const buildChildrenMap = (edges: Edge[]): Map<string, string[]> => {
 /**
  * Finds the root node (node with no incoming edges)
  */
-const findRootNode = (nodes: Node[], edges: Edge[]): Node | undefined => {
+const findRootNode = (
+  nodes: Node[],
+  edges: Edge[]
+): Node | undefined => {
   const targetIds = new Set(edges.map((e) => e.target));
   return nodes.find((node) => !targetIds.has(node.id));
 };
@@ -66,7 +67,11 @@ const getSubtreeBounds = (
 
   const children = childrenMap.get(nodeId) || [];
   children.forEach((childId) => {
-    const childBounds = getSubtreeBounds(childId, nodesMap, childrenMap);
+    const childBounds = getSubtreeBounds(
+      childId,
+      nodesMap,
+      childrenMap
+    );
     minX = Math.min(minX, childBounds.minX);
     maxX = Math.max(maxX, childBounds.maxX);
   });
@@ -81,7 +86,9 @@ const getSubtreeBounds = (
 const packSiblings = (nodes: Node[], edges: Edge[]): Node[] => {
   if (nodes.length === 0) return nodes;
 
-  const nodesMap = new Map<string, Node>(nodes.map((node) => [node.id, node]));
+  const nodesMap = new Map<string, Node>(
+    nodes.map((node) => [node.id, node])
+  );
   const childrenMap = new Map<string, string[]>();
   const parentsMap = new Map<string, string[]>();
 
@@ -115,9 +122,17 @@ const packSiblings = (nodes: Node[], edges: Edge[]): Node[] => {
         const rightChildId = sortedChildren[i + 1];
 
         // Get bounds of the left sibling's subtree
-        const leftBounds = getSubtreeBounds(leftChildId, nodesMap, childrenMap);
+        const leftBounds = getSubtreeBounds(
+          leftChildId,
+          nodesMap,
+          childrenMap
+        );
         // Get bounds of the right sibling's subtree
-        const rightBounds = getSubtreeBounds(rightChildId, nodesMap, childrenMap);
+        const rightBounds = getSubtreeBounds(
+          rightChildId,
+          nodesMap,
+          childrenMap
+        );
 
         // Calculate current gap
         const currentGap = rightBounds.minX - leftBounds.maxX;
@@ -127,7 +142,12 @@ const packSiblings = (nodes: Node[], edges: Edge[]): Node[] => {
           const shiftAmount = -(currentGap - SIBLING_GAP);
 
           // Shift the right sibling and its entire subtree
-          shiftSubtree(rightChildId, shiftAmount, nodesMap, childrenMap);
+          shiftSubtree(
+            rightChildId,
+            shiftAmount,
+            nodesMap,
+            childrenMap
+          );
 
           // Note: We don't need to manually shift subsequent siblings here because
           // the loop will process (rightChildId, nextSibling) in the next iteration.
@@ -153,7 +173,10 @@ const centerChildrenUnderParents = (
 
   const childrenMap = buildChildrenMap(edges);
   const nodesMap = new Map<string, Node>(
-    nodes.map((node) => [node.id, { ...node, position: { ...node.position } }])
+    nodes.map((node) => [
+      node.id,
+      { ...node, position: { ...node.position } },
+    ])
   );
 
   const rootNode = findRootNode(nodes, edges);
@@ -183,7 +206,9 @@ const centerChildrenUnderParents = (
 
     if (childNodes.length === 0) continue;
 
-    const minChildX = Math.min(...childNodes.map((n) => n.position.x));
+    const minChildX = Math.min(
+      ...childNodes.map((n) => n.position.x)
+    );
     const maxChildX = Math.max(
       ...childNodes.map((n) => n.position.x + nodeWidth)
     );
@@ -215,22 +240,36 @@ export const getLayoutedNodesAndEdges = (
   dagreGraph.setGraph({
     rankdir: direction,
     nodesep: 50, // Reduced from 100 to make siblings closer
-    ranksep: 200, // Vertical spacing between ranks
+    ranksep: 150, // Standard vertical spacing (reduced from 300 as height calc is now better)
   });
 
   // Calculate node dimensions
   nodes.forEach((node) => {
     const nodeData = node.data as MessageNodeData;
-    const numMessages = nodeData.chatHistory.length;
 
-    // Calculate height with padding and constraints
-    const estimatedHeight = Math.min(
+    // Check if node is a leaf (has no outgoing edges)
+    const isLeaf = !edges.some((e) => e.source === node.id);
+
+    // Smart height estimation based on content length
+    let contentHeight = 0;
+    nodeData.chatHistory.forEach((msg) => {
+      // Rough estimate: 60 chars per line, 24px per line
+      const lines = Math.ceil(msg.content.length / 60);
+      contentHeight += lines * 24 + 20; // 20px padding between messages
+
+      // Add extra height for block math
+      if (msg.content.includes('$$') || msg.content.includes('\\[')) {
+        contentHeight += 60;
+      }
+    });
+
+    const listHeight = Math.min(
       maxNodeHeight,
-      Math.max(
-        minHeight,
-        baseNodeHeight + numMessages * messageHeight
-      )
+      Math.max(minHeight, contentHeight)
     );
+
+    // Add padding (p-5 = 40px) + input box height if leaf (~100px)
+    const estimatedHeight = listHeight + 40 + (isLeaf ? 100 : 0);
 
     dagreGraph.setNode(node.id, {
       width: nodeWidth,
@@ -259,7 +298,7 @@ export const getLayoutedNodesAndEdges = (
       ...node,
       position: {
         x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight,
+        y: nodeWithPosition.y - nodeHeight / 2, // Convert center to top-left (was incorrectly using - nodeHeight)
       },
       style: {
         width: nodeWidth,
@@ -272,7 +311,10 @@ export const getLayoutedNodesAndEdges = (
   const packedNodes = packSiblings(layoutedNodes, edges);
 
   // Post-process to center children under their parents
-  const centeredNodes = centerChildrenUnderParents(packedNodes, edges);
+  const centeredNodes = centerChildrenUnderParents(
+    packedNodes,
+    edges
+  );
 
   return {
     nodes: centeredNodes,
@@ -303,7 +345,9 @@ const calculateDepths = (
   if (!rootNode) return depths;
 
   // BFS to calculate depths
-  const queue: { id: string; depth: number }[] = [{ id: rootNode.id, depth: 0 }];
+  const queue: { id: string; depth: number }[] = [
+    { id: rootNode.id, depth: 0 },
+  ];
   const childrenMap = new Map<string, string[]>();
 
   edges.forEach((edge) => {
