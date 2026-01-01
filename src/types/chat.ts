@@ -15,6 +15,7 @@ export type MessageNodeData = {
   isLoading?: boolean;
   isOnActivePath?: boolean;
   depth?: number; // Depth in the tree for accent color
+  pendingRequestId?: string; // Tracks which API request this node is waiting for
 };
 
 export type TreeEdgeData = {

@@ -34,7 +34,6 @@ const TreeEdge: React.FC<EdgeProps<TreeEdgeData>> = ({
 
   // Determine direction
   const goingRight = targetX > sourceX;
-  const isStraight = targetX === sourceX;
 
   // Clamp radius to avoid issues with short distances
   const horizontalDistance = Math.abs(targetX - sourceX);
@@ -48,29 +47,24 @@ const TreeEdge: React.FC<EdgeProps<TreeEdgeData>> = ({
     verticalDistanceBottom / 2
   );
 
-  let path: string;
+  // Direction multiplier: 1 for right, -1 for left
+  const dir = goingRight ? 1 : -1;
 
-  if (isStraight) {
-    // Straight line down - no corners needed
-    path = `M ${sourceX} ${sourceY} L ${sourceX} ${targetY}`;
-  } else {
-    // Direction multiplier: 1 for right, -1 for left
-    const dir = goingRight ? 1 : -1;
-
-    // Build path with rounded corners
-    path = `
-      M ${sourceX} ${sourceY}
-      L ${sourceX} ${junctionY - effectiveRadius}
-      Q ${sourceX} ${junctionY} ${
-      sourceX + dir * effectiveRadius
-    } ${junctionY}
-      L ${targetX - dir * effectiveRadius} ${junctionY}
-      Q ${targetX} ${junctionY} ${targetX} ${
-      junctionY + effectiveRadius
-    }
-      L ${targetX} ${targetY}
-    `;
+  // Build path with rounded corners
+  // Even for straight edges, we use the same path structure (with 0 horizontal distance)
+  // to ensure perfect alignment with sibling edges at the junction point.
+  const path = `
+    M ${sourceX} ${sourceY}
+    L ${sourceX} ${junctionY - effectiveRadius}
+    Q ${sourceX} ${junctionY} ${
+    sourceX + dir * effectiveRadius
+  } ${junctionY}
+    L ${targetX - dir * effectiveRadius} ${junctionY}
+    Q ${targetX} ${junctionY} ${targetX} ${
+    junctionY + effectiveRadius
   }
+    L ${targetX} ${targetY}
+  `;
 
   const edgeColor = isActive ? ACTIVE_COLOR : INACTIVE_COLOR;
   const strokeWidth = isActive ? 3 : 2;

@@ -84,8 +84,9 @@ export const useFlow = (isDebugMode: boolean = true) => {
     aiServiceRef.current = getAIService(isDebugMode);
   }, [isDebugMode]);
 
-  // Ref to track the node currently awaiting an assistant response
-  const awaitingResponseRef = useRef<string | null>(null);
+  // Map to track pending API requests: requestId -> nodeId
+  // This allows us to handle node ID changes during branching
+  const pendingRequestsRef = useRef<Map<string, string>>(new Map());
 
   // Handle setting the active node
   const handleSetActive = useCallback((nodeId: string) => {
@@ -146,15 +147,32 @@ export const useFlow = (isDebugMode: boolean = true) => {
   const handleSendMessage = useCallback(
     async (nodeId: string, message: string) => {
       const timestamp = Date.now();
+      const requestId = `req-${timestamp}`;
       const userMessage: ChatMessage = {
         id: `msg-${timestamp}-user`,
         sender: 'user',
         content: message,
       };
 
+      // Track this request
+      pendingRequestsRef.current.set(requestId, nodeId);
+
+      // Capture the current flow data for the API call
+      let chatHistoryForApi: ChatMessage[] = [];
+
       // Add user message to the node's chat history and set isLoading to true
       setFlowData((prevFlowData) => {
         const { nodes, edges } = prevFlowData;
+
+        // Build chat history for API call before updating
+        const nodeForHistory = nodes.find((n) => n.id === nodeId);
+        if (nodeForHistory) {
+          chatHistoryForApi = [
+            ...getFullChatHistory(nodeId, nodes, edges),
+            userMessage,
+          ];
+        }
+
         const updatedNodes = nodes.map((node) => {
           if (node.id === nodeId) {
             const nodeData = node.data as MessageNodeData;
@@ -163,21 +181,16 @@ export const useFlow = (isDebugMode: boolean = true) => {
               data: {
                 ...nodeData,
                 chatHistory: [...nodeData.chatHistory, userMessage],
-                isLoading: true, // Set loading state
+                isLoading: true,
+                pendingRequestId: requestId, // Track which request this node is waiting for
               },
             };
           }
           return node;
         });
 
-        const layouted = getLayoutedNodesAndEdges(
-          updatedNodes,
-          edges
-        );
-        const nodesWithIsLeaf = updateIsLeaf(
-          layouted.nodes,
-          layouted.edges
-        );
+        const layouted = getLayoutedNodesAndEdges(updatedNodes, edges);
+        const nodesWithIsLeaf = updateIsLeaf(layouted.nodes, layouted.edges);
 
         return {
           nodes: nodesWithIsLeaf,
@@ -185,94 +198,84 @@ export const useFlow = (isDebugMode: boolean = true) => {
         };
       });
 
-      // Set the nodeId in ref to indicate it's awaiting a response
-      awaitingResponseRef.current = nodeId;
+      // Make the API call directly (not in useEffect)
+      try {
+        const assistantMessage = await aiServiceRef.current.getResponse(chatHistoryForApi);
+
+        // Update the node with the response
+        setFlowData((prevFlowData) => {
+          const { nodes, edges } = prevFlowData;
+
+          // Find the node that has this pending request
+          // (it might have been renamed due to branching)
+          const targetNode = nodes.find(
+            (node) => (node.data as MessageNodeData).pendingRequestId === requestId
+          );
+
+          if (!targetNode) {
+            console.warn(`Node for request ${requestId} not found, response discarded`);
+            return prevFlowData;
+          }
+
+          const updatedNodes = nodes.map((node) => {
+            if (node.id === targetNode.id) {
+              const nodeData = node.data as MessageNodeData;
+              return {
+                ...node,
+                data: {
+                  ...nodeData,
+                  chatHistory: [...nodeData.chatHistory, assistantMessage],
+                  isLoading: false,
+                  pendingRequestId: undefined,
+                },
+              };
+            }
+            return node;
+          });
+
+          const layouted = getLayoutedNodesAndEdges(updatedNodes, edges);
+          const nodesWithIsLeaf = updateIsLeaf(layouted.nodes, layouted.edges);
+
+          return {
+            nodes: nodesWithIsLeaf,
+            edges: layouted.edges,
+          };
+        });
+      } catch (error) {
+        console.error('Error fetching assistant response:', error);
+
+        // Reset loading state on error
+        setFlowData((prevFlowData) => {
+          const { nodes, edges } = prevFlowData;
+
+          const targetNode = nodes.find(
+            (node) => (node.data as MessageNodeData).pendingRequestId === requestId
+          );
+
+          if (!targetNode) return prevFlowData;
+
+          const updatedNodes = nodes.map((node) => {
+            if (node.id === targetNode.id) {
+              const nodeData = node.data as MessageNodeData;
+              return {
+                ...node,
+                data: {
+                  ...nodeData,
+                  isLoading: false,
+                  pendingRequestId: undefined,
+                },
+              };
+            }
+            return node;
+          });
+
+          return { nodes: updatedNodes, edges };
+        });
+      } finally {
+        pendingRequestsRef.current.delete(requestId);
+      }
     },
     []
-  );
-
-  useEffect(
-    () => {
-      if (!awaitingResponseRef.current) return;
-
-      const nodeId = awaitingResponseRef.current;
-
-      // Fetch AI response with apiKey
-      aiServiceRef.current
-        .getResponse(
-          getFullChatHistory(nodeId, flowData.nodes, flowData.edges)
-        )
-        .then((assistantMessage) => {
-          // Update the node's chat history with the assistant's response and set isLoading to false
-          setFlowData((prevFlowData) => {
-            const { nodes, edges } = prevFlowData;
-            const updatedNodes = nodes.map((node) => {
-              if (node.id === nodeId) {
-                const nodeData = node.data as MessageNodeData;
-                return {
-                  ...node,
-                  data: {
-                    ...nodeData,
-                    chatHistory: [
-                      ...nodeData.chatHistory,
-                      assistantMessage,
-                    ],
-                    isLoading: false, // Reset loading state
-                  },
-                };
-              }
-              return node;
-            });
-
-            const layouted = getLayoutedNodesAndEdges(
-              updatedNodes,
-              edges
-            );
-            const nodesWithIsLeaf = updateIsLeaf(
-              layouted.nodes,
-              layouted.edges
-            );
-
-            return {
-              nodes: nodesWithIsLeaf,
-              edges: layouted.edges,
-            };
-          });
-
-          // Reset the awaiting response ref
-          awaitingResponseRef.current = null;
-        })
-        .catch((error) => {
-          console.error('Error fetching assistant response:', error);
-          // Optionally, handle errors by notifying the user or retrying
-
-          // Reset loading state even on error
-          setFlowData((prevFlowData) => {
-            const { nodes, edges } = prevFlowData;
-            const updatedNodes = nodes.map((node) => {
-              if (node.id === nodeId) {
-                const nodeData = node.data as MessageNodeData;
-                return {
-                  ...node,
-                  data: {
-                    ...nodeData,
-                    isLoading: false, // Reset loading state
-                  },
-                };
-              }
-              return node;
-            });
-
-            return {
-              nodes: updatedNodes,
-              edges: edges,
-            };
-          });
-
-          awaitingResponseRef.current = null;
-        });
-    },
-    [flowData.nodes, flowData.edges] // Removed apiKey from dependencies
   );
 
   // Ref to track which node to zoom to after branch creation
@@ -311,6 +314,10 @@ export const useFlow = (isDebugMode: boolean = true) => {
       const chatHistoryAfterBranch = originalData.chatHistory.slice(
         messageIndex + 1
       );
+
+      // Check if the original node had a pending request
+      // If so, it should be transferred to the continuation node (where the user message is)
+      const hasPendingRequest = originalData.pendingRequestId && originalData.isLoading;
 
       const branchNode: Node<MessageNodeData> = {
         id: branchNodeId,
@@ -358,7 +365,9 @@ export const useFlow = (isDebugMode: boolean = true) => {
             onSetActive: handleSetActive,
             isLeaf: true,
             isRoot: false,
-            isLoading: false,
+            // Transfer the pending request to the continuation node
+            isLoading: hasPendingRequest ? true : false,
+            pendingRequestId: hasPendingRequest ? originalData.pendingRequestId : undefined,
           },
           position: {
             x: branchNode.position.x,
