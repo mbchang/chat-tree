@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Node, Edge, Position } from 'reactflow';
 import { MessageNodeData, ChatMessage, TreeEdgeData } from '@/types/chat';
 import {
@@ -509,7 +509,8 @@ export const useFlow = (isDebugMode: boolean = true) => {
   }, []); // No dependencies here to run only once
 
   // Compute flow data with active path highlighting
-  const flowDataWithActivePath = useCallback(() => {
+  // Using useMemo to cache the result (not useCallback which would cache a function)
+  const flowDataWithActivePath = useMemo(() => {
     if (!activeNodeId) {
       return flowData;
     }
@@ -540,7 +541,7 @@ export const useFlow = (isDebugMode: boolean = true) => {
   }, [flowData, activeNodeId]);
 
   return {
-    flowData: flowDataWithActivePath(),
+    flowData: flowDataWithActivePath,
     handleDelete,
     handleSendMessage,
     handleBranch,
