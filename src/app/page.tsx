@@ -23,9 +23,6 @@ import TreeEdge from '../components/TreeEdge';
 import { useFlow } from '@/hooks/useFlow';
 import { nodeWidth } from '@/constants/layout';
 
-// Store the last stable viewport before any node changes
-let savedViewport: Viewport = { x: 0, y: 0, zoom: 1 };
-
 // Inner component that uses useFlow and has access to ReactFlow context
 const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
   isDebugMode,
@@ -37,6 +34,9 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
   const hasInitialized = useRef(false);
   const prevActiveNodeId = useRef<string | null>(null);
   const prevNodesLength = useRef(0);
+
+  // Store the last stable viewport before any node changes
+  const savedViewportRef = useRef<Viewport>({ x: 0, y: 0, zoom: 1 });
 
   const nodeTypes = useMemo(
     () => ({
@@ -66,7 +66,7 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
       hasInitialized.current &&
       flowData.nodes.length === prevNodesLength.current
     ) {
-      savedViewport = getViewport();
+      savedViewportRef.current = getViewport();
     }
     prevNodesLength.current = flowData.nodes.length;
   }, [flowData.nodes, getViewport]);
@@ -77,7 +77,7 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
       hasInitialized.current = true;
       setTimeout(() => {
         fitView({ padding: 0.2, duration: 0 });
-        savedViewport = getViewport();
+        savedViewportRef.current = getViewport();
       }, 50);
       prevActiveNodeId.current = activeNodeId;
     }
@@ -107,7 +107,7 @@ const FlowCanvas: React.FC<{ isDebugMode: boolean }> = ({
         // Determine starting viewport
         const currentViewport = getViewport();
         const startViewport = useSavedViewport
-          ? { ...savedViewport }
+          ? { ...savedViewportRef.current }
           : currentViewport;
 
         const targetZoom = Math.max(startViewport.zoom, 0.8);
